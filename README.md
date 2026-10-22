@@ -1,81 +1,134 @@
+<div align="center">
+
 # project-packer
 
-> One-liner (EN): Turn what you've actually done — course projects, research, competitions, student work — into interview-proof, high-impact project experience. **Package the wording as hard as facts allow; never touch the facts themselves.**
+**Turn what you have actually done into interview-proof project experience — push the wording as hard as the facts allow, never touch the facts themselves.**
 
-把用户真实做过的事（课程项目、科研、竞赛、开源、学生工作）包装成**面试可防守**的高强度项目经历。
+![version](https://img.shields.io/badge/version-2.2.2-blue)
+![license](https://img.shields.io/badge/license-MIT-green)
+![type](https://img.shields.io/badge/agent%20skill-SKILL.md-orange)
 
-不是简历美化器，更不是造假助手。核心规则一句话：**夸大的天花板 = 追问三层的防守能力**——措辞可以拉满到事实允许的强度，事实（数字、时间、署名、隶属）一个不能动。
+<p align="center">
+  <b>English</b> · <a href="./README.zh-CN.md">简体中文</a>
+</p>
 
-> 由 internship-packer（实习经历包装器）转型而来：不再触碰"实习造假"敏感点，定位为求职表达优化工具，覆盖在校生、应届校招、社招转行等更广人群。旧链接经 GitHub 重定向仍然有效。
+</div>
 
-## 核心设计
+---
 
-- **硬约束优先**：不虚构可核查的事实（雇主隶属/职务/时间/署名/数字）；每个量化数字必须有证据指针；术语如实升级（复现 ≠ 自研）；主动提醒 AI 协作披露口径
-- **包装强度分级**：标准档（稳妥防守）与强化档（措辞拉满 + 逐条防守预案），按面试临近度选用，两档数字完全一致
-- **考古模式**：直接扫描用户的工作区/仓库，从数据表和结果文件里取数字（不信口述），每条素材带证据指针和取证方式
-- **措辞红绿灯**：绿（直接写）/ 黄（必须带限定词）/ 红（必须砍），交稿前逐条过
-- **对抗审计**：背调审核员 + 技术面试官双视角，外加数字逐个回溯和隐私扫描，fail 项未处理不得交稿
-- **载体重定位**：提前备好"这段是实习吗 / 为什么你没有实习经历"的进攻性回答，把非实习载体翻译成自驱力证据
-- **事实档案**：每个用户一份 facts.md 唯一事实源（数字+口径+证据指针+两档定稿+防守分），输出前强制 diff，多次包装不漂移
-- **陪练模式**：agent 扮演面试官逐层追问，三维反馈，答崩的表述降档、问题回写追问树与真题库
-- **双层审计**：`scripts/lint_resume.py` 机械层（动词黑名单/红灯词/日期混用/数字比对/关键词覆盖，离线零依赖）+ agent 语义层（追问树/口径/归属）
-- **防守分评分卡**：每条 bullet 0~3 分（证据强度 + 追问树覆盖），<2 分禁入强化档
-- **ATS 适配**：纯文本版规范 + JD 关键词覆盖率，缺词三分类，不堆砌不隐写
-- **复盘回写**：真实面试被问到但追问树里没有的问题，回写进树并沉淀真题库，命中率统计驱动下次包装
+An agent skill that turns real work — course projects, research, competitions, open source, student activities — into **defensible, high-impact** project experience for job applications.
 
-## 安装
+This is not a resume beautifier, and it is not a fabrication assistant. The core rule in one sentence: **the ceiling of exaggeration is your ability to defend three layers of follow-up questions** — the wording can be pushed to whatever the facts support, but the facts (numbers, dates, authorship, affiliation) cannot move an inch.
 
-把整个文件夹放进你的 agent 的 skills 目录：
+> Evolved from `internship-packer` (an internship-experience packer): it no longer touches the sensitive area of faking internships, and is positioned as a job-application expression tool covering students, new graduates and career switchers. Old links still resolve through GitHub redirects.
+
+## Core design
+
+- **Hard constraints first** — never invent verifiable facts (employer affiliation / title / dates / authorship / numbers); every quantified number needs an evidence pointer; terminology upgrades only when truthful (reproduction ≠ original research); proactively prompts for AI-collaboration disclosure.
+- **Packaging tiers** — a Standard tier (safe to defend) and an Intensified tier (wording maxed out, with a defence plan for every line), chosen by how close the interview is. Numbers are identical across both tiers.
+- **Archaeology mode** — scans the user's workspace or repository and pulls numbers from data tables and result files rather than from memory; every item carries an evidence pointer and how it was obtained.
+- **Wording traffic lights** — green (write it directly) / amber (needs a qualifier) / red (must be cut), checked line by line before delivery.
+- **Adversarial audit** — a background-check reviewer and a technical interviewer as two viewpoints, plus number-by-number traceback and a privacy scan. Nothing ships with an unresolved fail.
+- **Carrier reframing** — prepares answers to the aggressive questions ("was this an internship?" / "why do you have no internship?") in advance, translating non-internship experience into evidence of self-direction.
+- **Fact ledger** — one `facts.md` as the single source of truth per user (numbers + convention + evidence pointer + both final tiers + defence score); a forced diff before every output so repeated packaging never drifts.
+- **Sparring mode** — the agent plays the interviewer and drills down layer by layer with three-dimensional feedback; statements that collapse get downgraded, and the questions get written back into the follow-up tree and question bank.
+- **Two-layer audit** — `scripts/lint_resume.py` for the mechanical layer (verb blacklist / red-flag words / mixed date formats / number comparison / keyword coverage, offline and dependency-free) plus an agent semantic layer (follow-up tree / conventions / attribution).
+- **Defence score** — each bullet gets 0–3 points (evidence strength + follow-up-tree coverage); anything below 2 is barred from the Intensified tier.
+- **ATS adaptation** — a plain-text version spec plus JD keyword coverage, with missing keywords sorted into three categories; no keyword stuffing, no hidden text.
+- **Retrospective write-back** — real interview questions that the follow-up tree did not anticipate get written back into the tree and banked; hit-rate statistics drive the next round.
+
+## Install
+
+Drop the whole folder into your agent's skills directory:
 
 ```bash
 # Claude Code
 git clone https://github.com/ilo-love7/project-packer.git ~/.claude/skills/project-packer
 
-# 其他支持 SKILL.md 规范的 agent（AgentMore 等）
-# 复制到对应 skills 目录即可，确保 SKILL.md 位于根目录
+# Other agents that follow the SKILL.md spec (AgentMore, etc.)
+# copy it into the corresponding skills directory, keeping SKILL.md at the root
 ```
 
-目录结构：
+Directory structure:
 
 ```
-internship-packer/
-├── SKILL.md                        # 主流程：6 阶段工作流 + 硬约束
+project-packer/
+├── SKILL.md                        # main flow: 6-stage workflow + hard constraints
 ├── references/
-│   ├── templates.md                # 输出模板（含替代量化、载体话术）
-│   ├── integrity-audit.md          # 对抗审计检查单（5 视角 21 条）
-│   ├── example-battery.md          # 黄金示例：有硬数据的科研复现项目
-│   └── example-student-work.md     # 对照示例：无硬数字的学生工作
-└── evals.md                        # 回归测试用例（改版后必跑）
+│   ├── templates.md                # output templates (incl. substitute quantification, carrier scripts)
+│   ├── integrity-audit.md          # adversarial audit checklist (5 viewpoints, 21 items)
+│   ├── fact-file.md                # fact ledger: the single source of truth
+│   ├── drill-mode.md               # sparring mode: interviewer drill-down + write-back
+│   ├── example-battery.md          # golden example: a research reproduction with hard data
+│   └── example-student-work.md     # contrast example: student work without hard numbers
+├── scripts/
+│   └── lint_resume.py              # offline mechanical audit (verbs / red flags / dates / numbers)
+└── evals.md                        # regression test cases (must run after any revision)
 ```
 
-## 使用
+## Usage
 
-**触发方式**：对 agent 说"帮我包装经历 / 这个项目怎么写进简历 / 没有实习经历怎么面试 / 准备面试话术"。
+**How to trigger it** — tell the agent: "help me package this experience", "how do I write this project on my resume", "how do I interview without an internship", "prepare my interview talking points".
 
-**三种模式自动分流**（阶段 0 判定）：
+**Three modes, routed automatically** (decided in stage 0):
 
-| 模式 | 适用 | 流程 |
+| Mode | Fits | Flow |
 |---|---|---|
-| 快速模式 | 只想把一段经历写成简历条目 | 简版收集 → 条目 → 红灯快查，几分钟出稿 |
-| 口述模式 | 直接描述经历 | 八件事一次问完 → 全流程 |
-| 考古模式 | 给出仓库/工作区路径 | 扫描代码与数据提取证据 → 全流程 |
+| Quick | You just want one experience turned into a resume bullet | Short intake → bullet → red-flag check, a few minutes |
+| Oral | You describe the experience directly | Eight questions in one pass → full flow |
+| Archaeology | You give a repository or workspace path | Scan code and data for evidence → full flow |
 
-**完整产出**（全流程）：简历条目 ×4-6 ｜ STAR 故事 ×3（含追问预判树）｜ 30 秒电梯稿 ｜ 诚实边界卡 ｜ 载体重定位话术 ｜ 证据清单 ｜ 审计报告。英文 JD 自动输出双语简历条目与电梯稿。
+**Full output** (complete flow): 4–6 resume bullets ｜ 3 STAR stories (with anticipated follow-up trees) ｜ a 30-second elevator pitch ｜ an honesty-boundary card ｜ carrier-reframing scripts ｜ an evidence list ｜ an audit report. For an English job description it also outputs bilingual bullets and pitch.
 
-## 示例
+## Examples
 
-- [example-battery.md](references/example-battery.md)：复现 Nature Energy 2019 锂电池寿命预测项目 → 简历条目、33.6%→5.9% 排障 STAR、追问树、诚实边界卡
-- [example-student-work.md](references/example-student-work.md)：174 人英语打卡活动 → 替代量化、激励失效冲突 STAR、"为什么没有实习经历"话术
+- [`references/example-battery.md`](references/example-battery.md) — reproducing the Nature Energy 2019 battery cycle-life paper → resume bullets, a 33.6%→5.9% debugging STAR, follow-up tree, honesty-boundary card.
+- [`references/example-student-work.md`](references/example-student-work.md) — a 174-person English check-in activity → substitute quantification, an incentive-failure conflict STAR, and the "why no internship" script.
 
-## 更新日志
+## Changelog
 
-- **v2.2.2**（2026-10-15）：简历条目新增"工具链显性"（工具/软件名必须入 bullet，ATS 关键词直接来源）与"成果大白话"（术语后跟白话解释，外行 5 秒能懂）两规则，附白话化口径红线（不歪曲统计口径）；用户反馈驱动
-- **v2.2.1**（2026-10-15）：简历条目新增"过程细节下沉"规则——一条 bullet 只装一个动作（做了什么/用什么做/结果是什么），怎么发现、排除假设、修复细节等过程全部下沉到追问树与 STAR；dogfood 实测反馈驱动
-- **v2.2**（2026-10-15）：新增事实档案（facts.md 唯一事实源，输出前 diff）、陪练模式（面试官对练+答崩降档回写）、离线 lint 脚本（scripts/lint_resume.py，机械层审计）、防守分评分卡（<2 分禁入强化档）、ATS 机筛适配（纯文本版+关键词覆盖三分类）、真题库沉淀、公司定制注入（查不到不编造）；evals 新增 H 组 6 条用例
-- **v2.1**（2026-10-15）：由 internship-packer 转型为 project-packer（项目经历包装器），规避实习造假敏感点、扩大适用人群；新增标准/强化两档包装强度（夸大上限=追问三层防守能力，两档数字一致，强化表述逐条配防守预案）；evals 新增 G 组 4 条用例
-- **v2.0**（2026-10-15）：新增快速模式、载体重定位话术、替代量化路径、英文开关、复盘回写（阶段 6）、数字可复算审计（视角 E）与隐私红线；新增学生工作对照示例
-- **v1.0**：初始版本——六阶段工作流、硬约束、措辞红绿灯、双视角审计、电池项目黄金示例
+<details>
+<summary><b>v2.2.2</b> (2026-10-15) — tool-chain visibility and plain-language outcomes</summary>
+
+Resume bullets gain two rules: "tool-chain visibility" (tool and software names must appear in the bullet — they are the direct source of ATS keywords) and "plain-language outcomes" (a plain explanation follows each technical term so a non-expert understands it in five seconds), with a red line on how far plain language may go without distorting the statistic. Driven by user feedback.
+
+</details>
+
+<details>
+<summary><b>v2.2.1</b> (2026-10-15) — push process detail down</summary>
+
+Resume bullets gain a "process detail sinks down" rule: one bullet carries one action only (what was done / with what / what came out), while how it was discovered, which hypotheses were ruled out and the fix details all sink into the follow-up tree and STAR. Driven by dogfooding feedback.
+
+</details>
+
+<details>
+<summary><b>v2.2</b> (2026-10-15) — fact ledger, sparring, lint, defence score, ATS</summary>
+
+Adds the fact ledger (`facts.md` as the single source of truth, diffed before output), sparring mode (interviewer drill-down with downgrade-and-write-back), the offline lint script (`scripts/lint_resume.py`, mechanical audit layer), the defence-score card (below 2 barred from the Intensified tier), ATS screening adaptation (plain-text version + three-category keyword coverage), question-bank banking, and company-specific injection (no fabrication when nothing is found). Evals gain 6 cases in group H.
+
+</details>
+
+<details>
+<summary><b>v2.1</b> (2026-10-15) — internship-packer becomes project-packer</summary>
+
+Repositioned from internship-packer to project-packer (a project-experience packer), avoiding the sensitive area of internship fabrication and widening the audience. Adds Standard / Intensified packaging tiers (exaggeration ceiling = ability to defend three layers; numbers identical across tiers; every intensified line gets a defence plan). Evals gain 4 cases in group G.
+
+</details>
+
+<details>
+<summary><b>v2.0</b> (2026-10-15) — quick mode, reframing, substitute quantification</summary>
+
+Adds quick mode, carrier-reframing scripts, substitute quantification paths, an English switch, retrospective write-back (stage 6), a recomputable-number audit (viewpoint E) and privacy red lines; adds a student-work contrast example.
+
+</details>
+
+<details>
+<summary><b>v1.0</b> — initial release</summary>
+
+Six-stage workflow, hard constraints, wording traffic lights, two-viewpoint audit, and the battery-project golden example.
+
+</details>
 
 ## License
 
-见 [LICENSE](LICENSE)。
+See [LICENSE](LICENSE). MIT.
