@@ -137,6 +137,40 @@ class TestR2RedWords(unittest.TestCase):
             self.assertTrue(any(word in m for m in levels(issues, "ERROR")), f"{word} 未被拦截")
 
 
+class TestR2QuotedExemption(unittest.TestCase):
+    """引号内的红灯词是「引用」不是「主张」。
+
+    交付包按阶段 5 规范必须包含审计报告，而审计报告的写法就是引用被否掉的
+    原句（"初稿写了'自主研发'→ cut"）。不豁免的话，每个人都会在自己的审计
+    表上被自己的稿子报错。
+    """
+
+    def test_word_inside_chinese_quotes_is_not_an_error(self):
+        issues = lint.check('| "自主研发了搜索服务" | **cut** | 复现课程骨架 |')
+        self.assertEqual(levels(issues, "ERROR"), [])
+
+    def test_word_inside_corner_brackets_is_not_an_error(self):
+        issues = lint.check("- 初稿写「自主研发」→ cut")
+        self.assertEqual(levels(issues, "ERROR"), [])
+
+    def test_word_inside_backticks_is_not_an_error(self):
+        issues = lint.check("- 删掉 `自主研发` 这个说法")
+        self.assertEqual(levels(issues, "ERROR"), [])
+
+    def test_exemption_is_counted_in_info(self):
+        issues = lint.check('- 删掉"自主研发"，改为"复现"')
+        self.assertTrue(any("引号内" in m for m in levels(issues, "INFO")))
+
+    def test_unquoted_word_still_errors_on_the_same_line(self):
+        issues = lint.check('- 删掉"自主研发"，但正文里又写了自主研发系统')
+        self.assertEqual(len(levels(issues, "ERROR")), 1)
+
+    def test_quote_spans_do_not_swallow_the_whole_line(self):
+        # 只有一个引号时不成对，不应把后面整行都当成引用
+        issues = lint.check('- 他写了"然后 自主研发了系统')
+        self.assertEqual(len(levels(issues, "ERROR")), 1)
+
+
 class TestR3DateFormats(unittest.TestCase):
     def test_single_format_is_clean(self):
         issues = lint.check("2024.09 - 2025.03")
@@ -264,6 +298,15 @@ class TestGoldenExamples(unittest.TestCase):
     def test_student_work_example_has_no_errors(self):
         text = (ROOT / "references" / "example-student-work.md").read_text(encoding="utf-8")
         self.assertEqual(levels(lint.check(text), "ERROR"), [])
+
+    def test_software_example_has_no_errors(self):
+        text = (ROOT / "references" / "example-software.md").read_text(encoding="utf-8")
+        self.assertEqual(levels(lint.check(text), "ERROR"), [])
+
+    def test_software_example_has_no_warnings_either(self):
+        # 这个示例是"照着抄就能过 lint"的示范，所以要求比 ERROR-only 更严
+        text = (ROOT / "references" / "example-software.md").read_text(encoding="utf-8")
+        self.assertEqual(levels(lint.check(text), "WARN"), [])
 
 
 if __name__ == "__main__":

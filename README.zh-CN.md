@@ -5,7 +5,7 @@
 **把真实做过的事包装成面试可防守的高强度项目经历——措辞可以拉满，事实一个不能动。**
 
 ![ci](https://github.com/ilo-love7/project-packer/actions/workflows/ci.yml/badge.svg)
-![version](https://img.shields.io/badge/version-2.4.0-blue)
+![version](https://img.shields.io/badge/version-2.5.0-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
 ![type](https://img.shields.io/badge/agent%20skill-SKILL.md-orange)
 
@@ -61,7 +61,12 @@ project-packer/
 │   ├── fact-file.md                # 事实档案：唯一事实源
 │   ├── drill-mode.md               # 陪练模式：面试官追问 + 回写
 │   ├── example-battery.md          # 黄金示例：有硬数据的科研复现项目
-│   └── example-student-work.md     # 对照示例：无硬数字的学生工作
+│   ├── example-student-work.md     # 对照示例：无硬数字的学生工作
+│   └── example-software.md         # 软件工程示例：自测指标 + 三种岗位换弹头
+├── templates/                      # 直接复制就能用的起稿模板
+│   ├── facts.template.md           # 事实档案骨架
+│   ├── question-bank.template.md   # 真题库骨架
+│   └── delivery.template.md        # 完整交付包骨架
 ├── scripts/
 │   ├── lint_resume.py              # 机械层审计（动词/红灯词/日期/数字）
 │   ├── trace_numbers.py            # 把交付稿里每个数字回溯到工作区里的真实出处
@@ -171,8 +176,30 @@ python3 scripts/lint_resume.py references/example-battery.md --strict
 
 - [example-battery.md](references/example-battery.md)：复现 Nature Energy 2019 锂电池寿命预测项目 → 简历条目、33.6%→5.9% 排障 STAR、追问树、诚实边界卡
 - [example-student-work.md](references/example-student-work.md)：174 人英语打卡活动 → 替代量化、激励失效冲突 STAR、"为什么没有实习经历"话术
+- [example-software.md](references/example-software.md)：三人小组课程项目后端 → p95 480ms→90ms、覆盖率 61%→84%、CI 7分20秒→2分10秒；展示同一段经历按研发/测试/工程三种岗换弹头的写法，以及小组项目里"这是你自己做的吗"的标准答法
+
+## 从这里开始
+
+这三个模板存在的唯一目的，是让第一次跑不用面对空白页：
+
+| 文件 | 什么时候用 |
+|---|---|
+| [templates/facts.template.md](templates/facts.template.md) | 包装任何东西之前，复制成 `facts.md`。里面「数字清单」的表头（数字/口径/证据指针/取证方式/防守分）就是后面机器检查的对齐基准 |
+| [templates/delivery.template.md](templates/delivery.template.md) | 阶段 5 交付时复制。节序是固定的：简历段放最前，因为用户 80% 的时间只看前两屏 |
+| [templates/question-bank.template.md](templates/question-bank.template.md) | 面完第一场就复制。一条真实问题 = 一条记录，标 ✅ 命中 / 🟡 树外答上 / ❌ 答崩 |
 
 ## 更新日志
+
+<details>
+<summary><b>v2.5.0</b>（2026-10-22）起稿模板 + 补齐缺失的软件工程示例</summary>
+
+这个 skill 一直在描述三样东西——事实档案、真题库、交付包——然后让你"按规范建立"。可仓库里没有任何东西可抄，这是新用户撞上的第一堵墙。现在 `templates/` 里三份都有，每份开头写明怎么用，而且结构是照着机器检查的形状做的：事实档案的数字表列头正好是 `lint_resume.py --facts` 要读的那几列，交付包的节序是固定的。
+
+`references/example-software.md` 补的是示例集里最大的缺口。原有两个例子一个是有硬数据的科研复现、一个是没有硬数字的学生工作，都不覆盖最常见的那类——**"效果"是自己测出来的工程项目**。它走了一遍 p95 480ms→90ms、覆盖率 61%→84%、CI 7分20秒→2分10秒，然后做了另外两个例子做不到的两件事：把**同一段经历重写三遍**分别投后端 / 测试 / 工程岗（事实相同，重心不同），以及演示小组项目里"这是你自己做的吗"该怎么答——既不夸大也不把自己的贡献说没。
+
+同时修掉一条每个交付包都会踩的 lint 误报：R2 原来只要出现红灯词就报错，连引号里的也算，于是审计表里那句 `"自主研发" → cut` 会把审计报告自己报成错误。现在引号内的命中视为「引用」而非「主张」，单独计一行提示。
+
+</details>
 
 <details>
 <summary><b>v2.4.0</b>（2026-10-22）数字溯源与隐私扫描变成可执行工具</summary>

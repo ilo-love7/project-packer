@@ -43,6 +43,7 @@ jobs:
         run: |
           python scripts/lint_resume.py references/example-battery.md --strict
           python scripts/lint_resume.py references/example-student-work.md --strict
+          python scripts/lint_resume.py references/example-software.md --strict
 
       - name: Check that lint actually catches a broken resume
         run: |

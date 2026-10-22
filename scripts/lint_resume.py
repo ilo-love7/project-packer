@@ -58,6 +58,40 @@ NUM_RE = re.compile(r"\d+(?:\.\d+)?")
 YEAR_RANGE = range(1900, 2101)
 PERCENT_CHARS = "%％"
 
+# 成对引号：命中片段被这样包起来，说明是在**引用**这个词，不是在主张它。
+# 典型场景是交付包里的审计表：「初稿写了"自主研发"→ cut」。
+# 不豁免的话，每个用户都会在自己的审计报告上被自己的稿子报错。
+QUOTE_PAIRS = {
+    '"': '"', "'": "'",
+    "\u201c": "\u201d",  # “ ”
+    "\u2018": "\u2019",  # ‘ ’
+    "\u300c": "\u300d",  # 「 」
+    "\u300e": "\u300f",  # 『 』
+    "`": "`",
+    "\u300a": "\u300b",  # 《 》
+}
+
+
+def _quoted_spans(line):
+    """返回行内被成对引号包住的区间列表 [(start, end), ...]。"""
+    spans, i = [], 0
+    while i < len(line):
+        close = QUOTE_PAIRS.get(line[i])
+        if close:
+            j = line.find(close, i + 1)
+            if j != -1:
+                spans.append((i + 1, j))
+                i = j + 1
+                continue
+        i += 1
+    return spans
+
+
+def _is_quoted(line, start, end, spans=None):
+    """命中片段是否落在某个引号区间内（在引用，不是在主张）。"""
+    spans = _quoted_spans(line) if spans is None else spans
+    return any(s <= start and end <= e for s, e in spans)
+
 
 def display_width(text):
     """按终端/排版显示宽度计数：全角与宽字符算 2，其余算 1。"""
@@ -163,13 +197,26 @@ def check(text, facts_text=None, keywords=None, max_width=150, min_number=10):
             )
 
     # R2：红灯词（附命中行片段，便于定位）
+    # 被成对引号包住的命中算「引用」不算「主张」——交付包的审计表会大量出现
+    # 这种写法（"初稿写了『自主研发』→ cut"），全报会把审计报告本身刷红。
+    quoted = 0
     for word, why in RED_WORDS.items():
         for i, line in enumerate(lines, 1):
-            if word in line:
-                snippet = line.strip()
-                if display_width(snippet) > 60:
-                    snippet = snippet[:28] + "…"
-                issues.append(("ERROR", i, f"R2 红灯词「{word}」：{why}｜{snippet}"))
+            spans = _quoted_spans(line)
+            start = line.find(word)
+            while start != -1:
+                if _is_quoted(line, start, start + len(word), spans):
+                    quoted += 1
+                else:
+                    snippet = line.strip()
+                    if display_width(snippet) > 60:
+                        snippet = snippet[:28] + "…"
+                    issues.append(("ERROR", i, f"R2 红灯词「{word}」：{why}｜{snippet}"))
+                start = line.find(word, start + 1)
+    if quoted:
+        issues.append(
+            ("INFO", "-", f"R2 另有 {quoted} 处红灯词出现在引号内（视为引用，未计入错误）")
+        )
 
     # R3：日期格式混用
     used = set()

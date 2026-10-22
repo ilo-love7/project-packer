@@ -5,7 +5,7 @@
 **Turn what you have actually done into interview-proof project experience — push the wording as hard as the facts allow, never touch the facts themselves.**
 
 ![ci](https://github.com/ilo-love7/project-packer/actions/workflows/ci.yml/badge.svg)
-![version](https://img.shields.io/badge/version-2.4.0-blue)
+![version](https://img.shields.io/badge/version-2.5.0-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
 ![type](https://img.shields.io/badge/agent%20skill-SKILL.md-orange)
 
@@ -61,7 +61,12 @@ project-packer/
 │   ├── fact-file.md                # fact ledger: the single source of truth
 │   ├── drill-mode.md               # sparring mode: interviewer drill-down + write-back
 │   ├── example-battery.md          # golden example: a research reproduction with hard data
-│   └── example-student-work.md     # contrast example: student work without hard numbers
+│   ├── example-student-work.md     # contrast example: student work without hard numbers
+│   └── example-software.md         # software example: self-measured metrics + three job-target variants
+├── templates/                      # copy-paste starting points
+│   ├── facts.template.md           # fact ledger skeleton
+│   ├── question-bank.template.md   # interview question bank skeleton
+│   └── delivery.template.md        # the full delivery package skeleton
 ├── scripts/
 │   ├── lint_resume.py              # mechanical audit (verbs / red flags / dates / numbers)
 │   ├── trace_numbers.py            # traces every number in a draft back to a real file
@@ -171,8 +176,30 @@ python3 scripts/lint_resume.py references/example-battery.md --strict
 
 - [`references/example-battery.md`](references/example-battery.md) — reproducing the Nature Energy 2019 battery cycle-life paper → resume bullets, a 33.6%→5.9% debugging STAR, follow-up tree, honesty-boundary card.
 - [`references/example-student-work.md`](references/example-student-work.md) — a 174-person English check-in activity → substitute quantification, an incentive-failure conflict STAR, and the "why no internship" script.
+- [`references/example-software.md`](references/example-software.md) — a three-person course project backend → p95 480ms→90ms, coverage 61%→84%, CI 7m20s→2m10s; shows the same experience rewritten for a backend, a QA and a platform role, plus how to answer "is this all your own work?" on a team project.
+
+## Start here
+
+Three files exist purely so the first run does not start from a blank page:
+
+| File | When |
+|---|---|
+| [`templates/facts.template.md`](templates/facts.template.md) | Copy to `facts.md` before packaging anything. The number table header (number / convention / evidence pointer / how to obtain / defence score) is what the machine checks align against. |
+| [`templates/delivery.template.md`](templates/delivery.template.md) | Copy at stage 5. The section order is fixed: resume block first, because that is where 80% of the reading happens. |
+| [`templates/question-bank.template.md`](templates/question-bank.template.md) | Copy after your first real interview. One real question = one record, marked ✅ hit / 🟡 outside the tree / ❌ collapsed. |
 
 ## Changelog
+
+<details>
+<summary><b>v2.5.0</b> (2026-10-22) — templates to start from, and the missing software example</summary>
+
+The skill described three artefacts — a fact ledger, a question bank, a delivery package — and told you to "build one following the spec". There was nothing to copy, which is the first wall a new user hits. `templates/` now holds all three, each opening with how-to-use notes and each pre-shaped so the machine checks line up with it: the ledger's number table has exactly the columns `lint_resume.py --facts` expects, and the delivery package's section order is fixed.
+
+`references/example-software.md` fills the biggest gap in the example set. The two existing examples are a research reproduction with hard data and student work with none; neither covers the most common case, a project whose "results" you measured yourself. It walks through p95 480ms→90ms, coverage 61%→84% and CI 7m20s→2m10s, then does two things the other examples cannot: it rewrites the *same* experience three times for a backend, a QA and a platform role (same facts, different emphasis), and it shows how to answer "is this all your own work?" on a team project without either inflating or erasing your contribution.
+
+Also fixes a lint false positive that every delivery package would have hit: R2 flagged red-flag words even when they sat inside quotes, so an audit table documenting `"自主研发" → cut` reported an error on itself. Quoted occurrences are now treated as quotation rather than assertion and counted in an informational line.
+
+</details>
 
 <details>
 <summary><b>v2.4.0</b> (2026-10-22) — number traceback and privacy scanning become executable</summary>
