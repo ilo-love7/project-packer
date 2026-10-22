@@ -381,6 +381,53 @@ class TestR7YellowWords(unittest.TestCase):
         self.assertEqual(self.r7("- Optimized the loading pipeline;"), [])
 
 
+class TestStructuralNumbers(unittest.TestCase):
+    """结构性数字与标识符里的数字，不是数据。
+
+    这三类假阳性是实测出来的：拿一份正常交付稿跑 `--facts`，19 条 R5 警告里
+    有 5 条是「阶段 3.1」「p95」「被否决的说法」这类根本不是数据的东西。
+    R5 的信噪比本来就是这套工具最脆的地方，多报几次用户就关掉了。
+    """
+
+    def sig(self, text):
+        return [t for t, _s, _e in lint.iter_significant_tokens(text)]
+
+    def test_heading_stage_number_is_not_data(self):
+        self.assertEqual(self.sig("## 阶段 3.1：简历条目"), [])
+
+    def test_cross_reference_is_not_data(self):
+        self.assertEqual(self.sig("规范见第 3.4 节"), [])
+
+    def test_number_after_ascii_letter_is_an_identifier(self):
+        # p95 的 95、x86 的 86、H100 的 100 都是名字的一部分
+        self.assertEqual(self.sig("p95 延迟 480ms"), ["480"])
+        self.assertEqual(self.sig("x86 与 H100 两种机器"), [])
+        self.assertEqual(self.sig("Python3.11 下跑通"), [])
+
+    def test_unit_suffix_is_not_mistaken_for_an_identifier(self):
+        # 480ms 的 480 后面跟着 m，但它确实是数据——所以判据只看前一个字符
+        self.assertEqual(self.sig("中位耗时 480ms"), ["480"])
+
+    def test_quoted_number_is_not_a_claim(self):
+        self.assertEqual(self.sig('- 不说"性能提升 5.3 倍"，那是延迟比'), [])
+
+    def test_same_value_outside_quotes_is_still_reported(self):
+        text = '- 不说"提升 5.3 倍"：480/90 约等于 5.3，是延迟比'
+        self.assertEqual(self.sig(text), ["480", "90", "5.3"])
+
+    def test_stage_number_that_is_also_a_real_metric_survives(self):
+        # 3.4 既是「阶段 3.4」的编号，也是「3.4 万条种子数据」的数据。
+        # 判据按出现位置而不是按词，所以它必须留下来。
+        text = "## 阶段 3.4：载体重定位\n\n- 服务 3.4 万条种子数据；"
+        self.assertEqual(self.sig(text), ["3.4"])
+
+    def test_low_signal_count_does_not_include_structural_numbers(self):
+        # 结构性数字既不算显著也不算低信号，否则 INFO 那行会说谎
+        text = "## 阶段 3.1\n\n## 阶段 3.2\n\n- 排查了 3 小时；"
+        _sig, low = lint.extract_significant_numbers(text)
+        self.assertEqual(low, 1)
+
+
 class TestGoldenExamples(unittest.TestCase):
     """参考示例本身必须是干净的——否则规则或示例有一方错了。"""
 

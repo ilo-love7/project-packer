@@ -5,7 +5,7 @@
 **Turn what you have actually done into interview-proof project experience — push the wording as hard as the facts allow, never touch the facts themselves.**
 
 ![ci](https://github.com/ilo-love7/project-packer/actions/workflows/ci.yml/badge.svg)
-![version](https://img.shields.io/badge/version-2.9.0-blue)
+![version](https://img.shields.io/badge/version-2.10.0-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
 ![type](https://img.shields.io/badge/agent%20skill-SKILL.md-orange)
 
@@ -33,7 +33,7 @@ This is not a resume beautifier, and it is not a fabrication assistant. The core
 - **Carrier reframing** — prepares answers to the aggressive questions ("was this an internship?" / "why do you have no internship?") in advance, translating non-internship experience into evidence of self-direction.
 - **Fact ledger** — one `facts.md` as the single source of truth per user (numbers + convention + evidence pointer + both final tiers + defence score); a forced diff before every output so repeated packaging never drifts.
 - **Sparring mode** — the agent plays the interviewer and drills down layer by layer with three-dimensional feedback; statements that collapse get downgraded, and the questions get written back into the follow-up tree and question bank.
-- **Five-layer audit** — four executable checks plus one semantic layer: `lint_resume.py` (verbs / red flags / yellow words / dates / numbers / keywords), `trace_numbers.py` (every number back to a file:line in your workspace), `scan_privacy.py` (secrets and PII, masked on output), `check_facts.py` (one ledger against several resume versions — cross-version conflicts, unrecorded numbers, idle material), then the agent's semantic pass (follow-up tree / conventions / attribution). Nothing ships with an unresolved fail.
+- **Five executable checks, one semantic pass** — `lint_resume.py` (verbs / red flags / yellow words / dates / numbers / keywords), `check_timeline.py` (the whole timeline as one axis — reversals / overlaps / gaps), `trace_numbers.py` (every number back to a file:line in your workspace), `scan_privacy.py` (secrets and PII, masked on output), `check_facts.py` (one ledger against several resume versions — cross-version conflicts, unrecorded numbers, idle material), then the agent's semantic pass (follow-up tree / conventions / attribution). Nothing ships with an unresolved fail.
 - **JD parsing** — paste the job description whole; `parse_jd.py` turns it into a grouped, frequency-sorted keyword list and prints the exact `--keywords` string the linter takes. High-frequency words are hard requirements, single mentions are bonuses, and that ordering is the priority order for the evidence map.
 - **Multi-project budgeting** — one page holds 12–20 lines of project experience, so "how many projects, how many bullets each, who goes first" is arithmetic rather than taste. A 3-axis score (job fit + defence score + distinctiveness) sorts every experience into L1 full / L2 compact / L3 one-liner / L4 interview-only; a project with a defence score of 0 can never exceed L2, and projects are ordered by relevance rather than recency. Cut material moves into the fact ledger, never into the bin.
 - **English and internship branches** — an English job description does not produce a translation, it produces a different writing system: past-tense verbs first, articles dropped, units kept, one spelling convention, 120 characters per line. Having an internship flips the discipline from "push the wording" to "be precise" — the evidence is stronger, but so is the verification: NDA boundaries, a clear statement of which part was yours, and the four questions every internship gets asked.
@@ -174,6 +174,8 @@ A `MISS` is the interesting case: either the number came from memory (which the 
 
 Matching is boundary-aware, so `3` does not match inside `13` or `3.5`, and `5.9` does not match `5.95`. The draft itself is excluded, otherwise every number would trivially "hit" its own source line. Significance uses the same rule as `lint_resume.py`, so the two tools never contradict each other.
 
+The "has a decimal point" half of that rule used to injure three things that look like decimals but are not data: section numbers (`## 阶段 3.1`), digits inside identifiers (`p95`, `x86`, `H100`, `Python3.11`), and numbers inside quotes where a claim is being rejected (`不说"性能提升 5.3 倍"`). On one ordinary delivery package that produced five false warnings out of nineteen. All three are now excluded, and the test is per **occurrence** rather than per value — so the `3.4` in `阶段 3.4` is skipped while the `3.4` in `3.4 万条种子数据` is still reported.
+
 ### 3. Privacy scan — `scan_privacy.py`
 
 ```bash
@@ -302,6 +304,23 @@ Three files exist purely so the first run does not start from a blank page:
 | [`templates/question-bank.template.md`](templates/question-bank.template.md) | Copy after your first real interview. One real question = one record, marked ✅ hit / 🟡 outside the tree / ❌ collapsed. |
 
 ## Changelog
+
+<details>
+<summary><b>v2.10.0</b> (2026-10-22) — a full sweep: three false positives out, two missing rows in</summary>
+
+No new features. Everything here came from reading every file in the repo, and both findings are the same failure mode: **a claim and its implementation drifted apart**.
+
+**R5 was counting three things that are not numbers.** Running `--facts` against one ordinary delivery package produced nineteen warnings, five of them fake: section numbers (`## 阶段 3.1`), digits inside identifiers (`p95`, `x86`, `H100`), and numbers inside quotes where a claim is being rejected (`不说"性能提升 5.3 倍"`). The root cause is the "has a decimal point" rule — a decimal point is a feature of data and equally a feature of numbering. The fix went into `is_significant_token`, because that is the single entry point shared by R5, `check_facts.py` and `trace_numbers.py`: one change repairs all three. The test is per **occurrence**, not per value, so `阶段 3.4` is skipped while `3.4 万条种子数据` in the same document is still reported. The low-signal counter was fixed too — excluded numbers were being counted as "another N integers below 10", which made that line lie.
+
+**The delivery template was missing two rows.** Section 6.1 had three (mechanical / trace / privacy), while stage 4 says the timeline and the ledger reconciliation are mandatory. The timeline had been inserted as "① 附加" back in v2.8 to avoid renumbering, and the template never caught up. The template is the thing users actually copy — a row missing there means the requirement does not exist. Now five rows, and inapplicable ones must say "not enabled" with a reason rather than staying blank.
+
+The layer count was unified at the same time: `SKILL.md` said four, the template and example said three, and the README listed five scripts. The number is now gone entirely — "five executable checks, one semantic pass" — so adding a sixth check will not make the sentence stale. The English README bullet was also missing `check_timeline.py`, which the Chinese one had.
+
+**New check C12** so this cannot drift back: the delivery template must cover all five delivery-facing check scripts (`check_docs.py` is repo maintenance and does not belong there). This is the third time this repo has been caught by its own checkers — C10 caught a missing directory-tree entry, C4 caught duplicated numbering, and C12 is the check that should have existed for this one.
+
+Tests 222 → 234 (8 for structural numbers, 4 for C12).
+
+</details>
 
 <details>
 <summary><b>v2.9.0</b> (2026-10-22) — the yellow words get a predicate</summary>

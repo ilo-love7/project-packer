@@ -23,6 +23,7 @@ check_docs.py — 文档一致性检查（离线、零依赖）
   C9  更新日志：SKILL.md 的 version 在两版 README 的 changelog 里有对应条目
   C10 目录树完整：references/ 与 templates/ 下每个文件都出现在两版 README 里
   C11 路径引用：SKILL.md 里反引号标注的 references/scripts/templates 路径真实存在
+  C12 模板覆盖：templates/delivery.template.md 的机器检查表列出全部检查脚本
 
 退出码：0=全部通过  1=有 FAIL
 """
@@ -48,6 +49,16 @@ EVAL_ITEM_RE = re.compile(r"^### ([A-Z])(\d+)\s", re.M)
 # SKILL.md 里用反引号标注的路径。不含 * 是为了放过 glob 写法（如 example-*.md）。
 BACKTICK_PATH_RE = re.compile(r"`((?:references|scripts|templates)/[A-Za-z0-9_./-]+)`")
 CHANGELOG_ENTRY_RE = "summary><b>v{}<"
+
+# 面向用户交付的机器检查脚本。check_docs.py 不在此列——它是本仓库的自检工具，
+# 用户的交付包里不需要记录它。
+DELIVERY_CHECKS = (
+    "lint_resume",
+    "check_timeline",
+    "trace_numbers",
+    "scan_privacy",
+    "check_facts",
+)
 
 
 def fenced_blocks(text):
@@ -263,6 +274,24 @@ def check(root=None):
             add("FAIL", "C11", f"SKILL.md 引用了不存在的路径：{p}")
     else:
         add("PASS", "C11", "SKILL.md 的路径引用全部存在")
+
+    # C12 交付模板的机器检查表必须覆盖全部检查脚本
+    # 这一条是被真实漂移逼出来的：时间线当年以「① 附加」插进阶段 4，没有重编号，
+    # 结果 templates/delivery.template.md 的 6.1 表停在最早的三个脚本（机械/溯源/隐私），
+    # 时间线与档案对账从没进过表。用户照模板填，那两项就永远不会被记录——
+    # 而 SKILL.md 说它们「必跑」。模板才是用户真正复制的东西，它漏了等于要求漏了。
+    # 用显式清单而不是 glob：check_docs.py 是本仓库的自检工具，不属于交付检查。
+    # 新增面向交付的检查脚本时，把名字加进这里。
+    tpl = root / "templates" / "delivery.template.md"
+    if not tpl.exists():
+        add("SKIP", "C12", "没有 templates/delivery.template.md，跳过")
+    else:
+        body = tpl.read_text(encoding="utf-8")
+        missing = [s for s in DELIVERY_CHECKS if s not in body]
+        if missing:
+            add("FAIL", "C12", f"交付模板 6.1 未覆盖：{', '.join(missing)}")
+        else:
+            add("PASS", "C12", f"交付模板覆盖全部 {len(DELIVERY_CHECKS)} 个交付检查脚本")
 
     return issues
 

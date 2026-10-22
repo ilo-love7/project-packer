@@ -169,15 +169,18 @@
 
 ## 6. 审计报告
 
-### 6.1 机器检查（三层，逐层记结果）
+### 6.1 机器检查（逐项记结果）
 
-| 层 | 命令 | 结果 |
+| 检查 | 命令 | 结果 |
 |---|---|---|
 | 机械层 | `lint_resume.py 本文件 --facts facts.md --keywords "..."` | ERROR [N] / WARN [N] |
+| 时间线 | `check_timeline.py 本文件` | REVERSED [N] / OVERLAP [N] / GAP [N] |
 | 溯源层 | `trace_numbers.py 本文件 工作区路径` | 命中 [X] / 未命中 [Y] |
 | 隐私层 | `scan_privacy.py 本文件` | ERROR [N] / WARN [N] / INFO [N] |
+| 档案对账 | `check_facts.py facts.md 本文件`（多版本时） | CONFLICT [N] / ORPHAN [N] |
 
-环境不可执行 Python 时写明哪一层未执行：__________
+不适用的项写「未启用」并给理由（如「单版本，无需跨版本对账」），不要留空。
+环境不可执行 Python 时写明哪一项未执行：__________
 
 ### 6.2 语义审计（双视角逐条过）
 

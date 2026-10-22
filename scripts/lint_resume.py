@@ -237,6 +237,14 @@ def extract_numbers(text):
     return found
 
 
+# 结构性数字：长得像小数，但没有任何审计意义。
+# 「## 阶段 3.1：简历条目」「见第 3.4 节」里的 3.1 / 3.4 不是数据，
+# 可它们是带小数点的，正好落进「小数一律算显著」这条规则里。
+# 实测一份正常交付稿会因此多报 4 条 R5 假警告——而 R5 的信噪比本来就是这个
+# 工具最脆的地方（见文件头关于 R5 的说明）。
+STRUCTURAL_PREFIX = ("阶段", "第", "见", "节", "步", "表", "图", "版本", "v", "V", "Stage", "Step")
+
+
 def is_significant_token(line, match, min_number=10):
     """判断某个数字匹配是否「值得逐一对账」。
 
@@ -246,14 +254,53 @@ def is_significant_token(line, match, min_number=10):
     抽成独立函数是为了让 check_facts.py 复用同一套判定——如果两个工具各写
     一份，迟早会在同一份稿子上给出不同的显著数字集合，而用户只会觉得工具
     不可靠。lint 与档案对账必须对"哪些数字算数"有且只有一个答案。
+
+    line 既可能是单行（check_facts 逐行调用），也可能是整篇（iter_significant_tokens），
+    所以下面的行内定位要自己算，不能假定 match 的偏移就是行内偏移。
     """
     tok = match.group(0)
     val = float(tok)
     if val.is_integer() and int(val) in YEAR_RANGE:
         return False
+    if _is_structural_ref(line, match) or _is_quoted_at(line, match):
+        return False
     has_decimal = "." in tok
     is_percent = match.end() < len(line) and line[match.end()] in PERCENT_CHARS
     return has_decimal or is_percent or val >= min_number
+
+
+def _current_line(text, start, end):
+    """取出 start 所在的那一行，以及 start 在该行内的偏移。"""
+    line_start = text.rfind("\n", 0, start) + 1
+    line_end = text.find("\n", end)
+    if line_end == -1:
+        line_end = len(text)
+    return text[line_start:line_end], start - line_start
+
+
+def _is_structural_ref(text, match):
+    """章节/阶段编号，或粘在 ASCII 字母上的标识符里的数字。
+
+    「p95」的 95、「x86」的 86、「H100」的 100、「Python3.11」的 3.11 都不是数据，
+    是名字的一部分。判据只看数字**前面**那个字符是不是字母——不能同时看后面，
+    否则「480ms」的 480 会因为后面跟着 m 而被误排除。
+    """
+    start = match.start()
+    before = text[max(0, start - 6):start]
+    if before.rstrip().endswith(STRUCTURAL_PREFIX):
+        return True
+    return start > 0 and text[start - 1].isascii() and text[start - 1].isalpha()
+
+
+def _is_quoted_at(text, match):
+    """命中片段是否落在引号里——引号内的数字是在引用，不是在主张。
+
+    与 R2/R7 同一套豁免逻辑。典型场景是诚实边界卡里那句
+    「不说"性能提升 5.3 倍"」：5.3 是被否决的说法，不是要上简历的数字。
+    同一行若另有一处未加引号的同值数字，仍然会被报出来（判据按出现位置，不按词）。
+    """
+    line, offset = _current_line(text, match.start(), match.end())
+    return _is_quoted(line, offset, offset + len(match.group(0)))
 
 
 def iter_significant_tokens(text, min_number=10):
@@ -268,7 +315,12 @@ def iter_significant_tokens(text, min_number=10):
 
 
 def extract_significant_numbers(text, min_number=10):
-    """只提取「值得逐一对账」的数字。返回 ({数字: 次数}, 低信号数字个数)"""
+    """只提取「值得逐一对账」的数字。返回 ({数字: 次数}, 低信号数字个数)
+
+    低信号计数要排除结构性数字与引号内数字：它们不是「值太小所以没比对」，
+    而是「根本不是数据」。混进低信号里会让 INFO 那行说谎
+    （「另有 78 个整数 < 10 的数字」，可其中 32 个是「阶段 3.1」这种编号）。
+    """
     sig = {}
     for tok, _s, _e in iter_significant_tokens(text, min_number):
         sig[tok] = sig.get(tok, 0) + 1
@@ -277,6 +329,8 @@ def extract_significant_numbers(text, min_number=10):
     for m in NUM_RE.finditer(masked):
         tok = m.group(0)
         if tok.isdigit() and int(tok) in YEAR_RANGE:  # 年份既不算显著也不算低信号
+            continue
+        if _is_structural_ref(masked, m) or _is_quoted_at(masked, m):
             continue
         if not is_significant_token(masked, m, min_number):
             low += 1

@@ -343,6 +343,45 @@ class TestC11BacktickPaths(unittest.TestCase):
             self.assertEqual(fails(docs.check(tmp), "C11"), [])
 
 
+class TestC12TemplateCoverage(unittest.TestCase):
+    """交付模板必须列出全部交付检查脚本。
+
+    这条检查的由来：模板 6.1 表停在最早的三个脚本，时间线与档案对账从没进过表，
+    而 SKILL.md 说它们必跑。用户照模板填，那两项就永远没有记录。
+    """
+
+    def _with_template(self, tmp, body):
+        (tmp / "templates").mkdir(exist_ok=True)
+        (tmp / "templates" / "delivery.template.md").write_text(body, encoding="utf-8")
+        return tmp
+
+    def test_missing_script_is_caught(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = self._with_template(
+                build(d),
+                "| 机械层 | `lint_resume.py` |\n| 时间线 | `check_timeline.py` |\n",
+            )
+            msgs = fails(docs.check(tmp), "C12")
+            self.assertEqual(len(msgs), 1)
+            # 漏的是还没写进表里的那几个
+            self.assertIn("trace_numbers", msgs[0])
+
+    def test_all_five_scripts_pass(self):
+        with tempfile.TemporaryDirectory() as d:
+            body = "\n".join(f"| x | `{s}.py` |" for s in docs.DELIVERY_CHECKS)
+            tmp = self._with_template(build(d), body)
+            self.assertEqual(fails(docs.check(tmp), "C12"), [])
+
+    def test_missing_template_is_skip_not_fail(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = build(d)
+            self.assertEqual(fails(docs.check(tmp), "C12"), [])
+
+    def test_check_docs_itself_is_not_required(self):
+        # check_docs.py 是仓库自检工具，不该出现在用户的交付检查表里
+        self.assertNotIn("check_docs", docs.DELIVERY_CHECKS)
+
+
 class TestRealRepo(unittest.TestCase):
     """仓库自身必须通过检查——否则说明文档确实不一致。"""
 
