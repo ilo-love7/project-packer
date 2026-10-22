@@ -1,0 +1,63 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: tests (py${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.9", "3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      # 零依赖：两个脚本都只用标准库，所以不需要 pip install
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -v
+
+  docs:
+    name: docs consistency
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      # 版本徽章 / 阶段数 / 审计条数 / 章节引用 / 双语对齐 / 相对链接
+      - name: Check documentation consistency
+        run: python scripts/check_docs.py
+
+      # 参考示例必须自身干净——否则规则或示例有一方写错了
+      - name: Lint the reference examples
+        run: |
+          python scripts/lint_resume.py references/example-battery.md --strict
+          python scripts/lint_resume.py references/example-student-work.md --strict
+
+      - name: Check that lint actually catches a broken resume
+        run: |
+          cat > /tmp/bad.md <<'EOF'
+          # 反例：以下每一条都应该被 lint 抓到
+          - 参与模型训练，自主研发了预测系统，效果提升 40%；
+          - 独立实现了自动化评估管线，把每次跑测的时间从 3 小时压缩到 12 分钟，并在团队内推广使用，后续又被另外两个小组复用，形成了可复用的标准流程模板与文档，另外还补齐了完整的回归测试、CI 流水线与交接说明；
+          EOF
+          set +e
+          out=$(python scripts/lint_resume.py /tmp/bad.md)
+          code=$?
+          set -e
+          echo "$out"
+          # 期望：有 ERROR → 退出码 2；R1/R2/R4 均命中
+          [ "$code" -eq 2 ] || { echo "::error::反例应返回退出码 2，实际 $code"; exit 1; }
+          echo "$out" | grep -q "R1" || { echo "::error::未抓到动词黑名单"; exit 1; }
+          echo "$out" | grep -q "R2" || { echo "::error::未抓到红灯词"; exit 1; }
+          echo "$out" | grep -q "R4" || { echo "::error::未抓到 bullet 超长"; exit 1; }

@@ -4,7 +4,7 @@
 
 **Turn what you have actually done into interview-proof project experience — push the wording as hard as the facts allow, never touch the facts themselves.**
 
-![version](https://img.shields.io/badge/version-2.2.2-blue)
+![version](https://img.shields.io/badge/version-2.3.0-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
 ![type](https://img.shields.io/badge/agent%20skill-SKILL.md-orange)
 
@@ -53,17 +53,20 @@ Directory structure:
 
 ```
 project-packer/
-├── SKILL.md                        # main flow: 6-stage workflow + hard constraints
+├── SKILL.md                        # main flow: 8-stage workflow (stage 0-7) + hard constraints
 ├── references/
 │   ├── templates.md                # output templates (incl. substitute quantification, carrier scripts)
-│   ├── integrity-audit.md          # adversarial audit checklist (5 viewpoints, 21 items)
+│   ├── integrity-audit.md          # adversarial audit checklist (5 viewpoints, 22 items)
 │   ├── fact-file.md                # fact ledger: the single source of truth
 │   ├── drill-mode.md               # sparring mode: interviewer drill-down + write-back
 │   ├── example-battery.md          # golden example: a research reproduction with hard data
 │   └── example-student-work.md     # contrast example: student work without hard numbers
 ├── scripts/
-│   └── lint_resume.py              # offline mechanical audit (verbs / red flags / dates / numbers)
-└── evals.md                        # regression test cases (must run after any revision)
+│   ├── lint_resume.py              # offline mechanical audit (verbs / red flags / dates / numbers)
+│   └── check_docs.py               # documentation consistency (version / counts / cross-refs / links)
+├── tests/                          # unittest suite for both scripts (zero dependency)
+├── evals.md                        # regression test cases (must run after any revision)
+└── .github/workflows/ci.yml        # tests + doc checks on every push
 ```
 
 ## Usage
@@ -80,12 +83,59 @@ project-packer/
 
 **Full output** (complete flow): 4–6 resume bullets ｜ 3 STAR stories (with anticipated follow-up trees) ｜ a 30-second elevator pitch ｜ an honesty-boundary card ｜ carrier-reframing scripts ｜ an evidence list ｜ an audit report. For an English job description it also outputs bilingual bullets and pitch.
 
+## Lint your draft offline
+
+The mechanical layer runs without the agent — pure standard library, no `pip install`:
+
+```bash
+# basic: verbs / red-flag words / mixed date formats / overlong bullets
+python3 scripts/lint_resume.py resume.md
+
+# cross-check every number against the fact ledger, and score JD keyword coverage
+python3 scripts/lint_resume.py resume.md --facts facts.md --keywords "Python,SQL,A/B testing"
+
+# machine-readable, for wiring into your own pipeline
+python3 scripts/lint_resume.py resume.md --facts facts.md --json
+```
+
+| Flag | Effect |
+|---|---|
+| `--facts facts.md` | Flags any significant number in the draft that never appears in the ledger |
+| `--keywords "a,b,c"` | Prints JD keyword coverage plus the missing list |
+| `--max-width N` | Bullet length limit in display width (default 150 ≈ two lines; CJK counts as 2) |
+| `--min-number N` | Numbers below N without a decimal point or `%` are treated as incidental and skipped (default 10) |
+| `--strict` | Treat warnings as failures, for use in CI |
+| `--json` | Emit structured JSON instead of text |
+
+Exit codes: `0` clean ｜ `1` warnings only ｜ `2` errors present.
+
+Note on the noise filter: a draft is full of incidental numbers ("spent 3 hours debugging"). Comparing every one of them against the ledger drowns the real warnings, so only numbers with a decimal point, a `%` sign, or a value at or above the threshold are checked one by one. The rest are counted and reported as a single informational line.
+
+## Development
+
+```bash
+python3 -m unittest discover -s tests -v   # unit tests for both scripts
+python3 scripts/check_docs.py              # version badge / stage count / audit item count / cross-refs / links
+python3 scripts/lint_resume.py references/example-battery.md --strict
+```
+
+`check_docs.py` exists because this project ships nothing but Markdown: writing "21 items" when the checklist actually has 22 produces no compiler error, it just quietly misleads. The checker turns that class of drift into a failing exit code. CI runs all three commands on Python 3.9 / 3.11 / 3.13.
+
 ## Examples
 
 - [`references/example-battery.md`](references/example-battery.md) — reproducing the Nature Energy 2019 battery cycle-life paper → resume bullets, a 33.6%→5.9% debugging STAR, follow-up tree, honesty-boundary card.
 - [`references/example-student-work.md`](references/example-student-work.md) — a 174-person English check-in activity → substitute quantification, an incentive-failure conflict STAR, and the "why no internship" script.
 
 ## Changelog
+
+<details>
+<summary><b>v2.3.0</b> (2026-10-22) — test suite, CI, and a doc-consistency checker</summary>
+
+The project now tests itself. Adds a 60-case `unittest` suite covering every lint rule (both directions: must fire and must not fire) and every documentation check; a GitHub Actions workflow running on Python 3.9 / 3.11 / 3.13; and `scripts/check_docs.py`, which verifies the version badge, stage count, audit item count, `第 N 节` cross-references, bilingual heading alignment and relative links — the class of drift that Markdown-only projects cannot catch by compiling.
+
+Two lint rules were reworked after measuring their real output. **R4** now measures display width instead of character count (a CJK character occupies two columns, so 75 Chinese characters and 150 Latin characters are both "two lines"); **R5** only cross-checks numbers carrying a decimal point, a `%` sign, or a value at or above a threshold — an unmodified rule flagged `spent 3 hours` as an unsourced claim, and a linter that cries wolf gets switched off. Also fixes: the audit checklist had 22 items numbered up to 21 (item 16 appeared twice), the README advertised a "6-stage workflow" when `SKILL.md` had 8 stages, and eight `第 N 节` references broke silently whenever a section was inserted.
+
+</details>
 
 <details>
 <summary><b>v2.2.2</b> (2026-10-15) — tool-chain visibility and plain-language outcomes</summary>

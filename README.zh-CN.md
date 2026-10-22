@@ -4,7 +4,7 @@
 
 **把真实做过的事包装成面试可防守的高强度项目经历——措辞可以拉满，事实一个不能动。**
 
-![version](https://img.shields.io/badge/version-2.2.2-blue)
+![version](https://img.shields.io/badge/version-2.3.0-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
 ![type](https://img.shields.io/badge/agent%20skill-SKILL.md-orange)
 
@@ -53,17 +53,20 @@ git clone https://github.com/ilo-love7/project-packer.git ~/.claude/skills/proje
 
 ```
 project-packer/
-├── SKILL.md                        # 主流程：6 阶段工作流 + 硬约束
+├── SKILL.md                        # 主流程：8 阶段工作流（阶段 0-7）+ 硬约束
 ├── references/
 │   ├── templates.md                # 输出模板（含替代量化、载体话术）
-│   ├── integrity-audit.md          # 对抗审计检查单（5 视角 21 条）
+│   ├── integrity-audit.md          # 对抗审计检查单（5 视角 22 条）
 │   ├── fact-file.md                # 事实档案：唯一事实源
 │   ├── drill-mode.md               # 陪练模式：面试官追问 + 回写
 │   ├── example-battery.md          # 黄金示例：有硬数据的科研复现项目
 │   └── example-student-work.md     # 对照示例：无硬数字的学生工作
 ├── scripts/
-│   └── lint_resume.py              # 离线机械层审计（动词/红灯词/日期/数字）
-└── evals.md                        # 回归测试用例（改版后必跑）
+│   ├── lint_resume.py              # 离线机械层审计（动词/红灯词/日期/数字）
+│   └── check_docs.py               # 文档一致性（版本号/条目数/章节引用/相对链接）
+├── tests/                          # 两个脚本的单元测试（零依赖）
+├── evals.md                        # 回归测试用例（改版后必跑）
+└── .github/workflows/ci.yml        # 每次推送跑测试 + 文档检查
 ```
 
 ## 使用
@@ -80,12 +83,59 @@ project-packer/
 
 **完整产出**（全流程）：简历条目 ×4-6 ｜ STAR 故事 ×3（含追问预判树）｜ 30 秒电梯稿 ｜ 诚实边界卡 ｜ 载体重定位话术 ｜ 证据清单 ｜ 审计报告。英文 JD 自动输出双语简历条目与电梯稿。
 
+## 离线跑机械层审计
+
+不需要 agent，纯标准库，不用 `pip install`：
+
+```bash
+# 基础检查：动词黑名单 / 红灯词 / 日期格式混用 / bullet 超长
+python3 scripts/lint_resume.py resume.md
+
+# 每个数字与事实档案逐一对账 + JD 关键词覆盖率
+python3 scripts/lint_resume.py resume.md --facts facts.md --keywords "Python,SQL,A/B 测试"
+
+# 机器可读，方便接进自己的流程
+python3 scripts/lint_resume.py resume.md --facts facts.md --json
+```
+
+| 参数 | 作用 |
+|---|---|
+| `--facts facts.md` | 交付稿里出现但档案里没有的显著数字，逐个报警 |
+| `--keywords "a,b,c"` | 输出 JD 关键词覆盖率与缺失清单 |
+| `--max-width N` | bullet 长度上限（按显示宽度算，默认 150 ≈ 2 行；中文按 2 计） |
+| `--min-number N` | 小于 N 且无小数点、无百分号的数字视为顺带数字，跳过比对（默认 10） |
+| `--strict` | 把警告也算失败，适合放进 CI |
+| `--json` | 输出结构化 JSON 而非文本 |
+
+退出码：`0` 干净 ｜ `1` 仅有警告 ｜ `2` 存在错误。
+
+关于降噪：简历里到处是顺带数字（"排查了 3 小时"），逐个对账会把真正的告警淹掉。所以只有「带小数点 / 带百分号 / 数值达到阈值」的数字才逐一对账，其余只统计成一行提示。
+
+## 开发
+
+```bash
+python3 -m unittest discover -s tests -v   # 两个脚本的单元测试
+python3 scripts/check_docs.py              # 版本徽章 / 阶段数 / 审计条数 / 章节引用 / 相对链接
+python3 scripts/lint_resume.py references/example-battery.md --strict
+```
+
+`check_docs.py` 的存在理由：这个项目发布的东西全是 Markdown，写错一个数字（清单实际 22 条却写"21 条"）不会有编译错误，只会悄悄误导用户和 agent 自己。检查器把这类漂移变成会失败的退出码。CI 在 Python 3.9 / 3.11 / 3.13 上跑这三条命令。
+
 ## 示例
 
 - [example-battery.md](references/example-battery.md)：复现 Nature Energy 2019 锂电池寿命预测项目 → 简历条目、33.6%→5.9% 排障 STAR、追问树、诚实边界卡
 - [example-student-work.md](references/example-student-work.md)：174 人英语打卡活动 → 替代量化、激励失效冲突 STAR、"为什么没有实习经历"话术
 
 ## 更新日志
+
+<details>
+<summary><b>v2.3.0</b>（2026-10-22）测试套件 + CI + 文档一致性检查</summary>
+
+项目开始自测。新增 60 条 `unittest` 用例，覆盖每一条 lint 规则（正反两面都测：该报必须报，不该报必须不报）与每一项文档检查；新增 GitHub Actions 工作流，在 Python 3.9 / 3.11 / 3.13 上运行；新增 `scripts/check_docs.py`，校验版本徽章、阶段数、审计条数、`第 N 节` 章节引用、双语标题对齐与相对链接——这些都是纯 Markdown 项目靠"编译"发现不了的一类漂移。
+
+两条 lint 规则按实测输出重做。**R4** 改为按显示宽度而非字符数计量（一个中文字符占两列，所以中文 75 字和英文 150 字符都等于两行）；**R5** 只对「带小数点 / 带百分号 / 数值达到阈值」的数字逐一对账——旧规则会把"排查了 3 小时"当成无出处的结论报警，而一个天天误报的检查器最后一定会被关掉。同时修掉三处缺陷：审计清单实际 22 条却编号到 21（第 16 条出现了两次）、README 宣称"6 阶段工作流"而 SKILL.md 实为 8 个阶段、8 处 `第 N 节` 引用在章节增删后会静默失效。
+
+</details>
 
 <details>
 <summary><b>v2.2.2</b>（2026-10-15）工具链显性 + 成果大白话</summary>

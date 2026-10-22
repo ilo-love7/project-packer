@@ -1,0 +1,9 @@
+# 统一换行符：仓库里全是 Markdown 和 Python，Windows 上的 CRLF 会在
+# diff 里制造整文件改动，也会让 CI（Linux）和本地行为不一致。
+* text=auto eol=lf
+
+# 以下类型不做换行符转换
+*.png binary
+*.jpg binary
+*.gif binary
+*.ico binary
