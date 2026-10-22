@@ -5,7 +5,7 @@
 **Turn what you have actually done into interview-proof project experience — push the wording as hard as the facts allow, never touch the facts themselves.**
 
 ![ci](https://github.com/ilo-love7/project-packer/actions/workflows/ci.yml/badge.svg)
-![version](https://img.shields.io/badge/version-2.7.0-blue)
+![version](https://img.shields.io/badge/version-2.8.0-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
 ![type](https://img.shields.io/badge/agent%20skill-SKILL.md-orange)
 
@@ -36,6 +36,7 @@ This is not a resume beautifier, and it is not a fabrication assistant. The core
 - **Five-layer audit** — four executable checks plus one semantic layer: `lint_resume.py` (verbs / red flags / dates / numbers / keywords), `trace_numbers.py` (every number back to a file:line in your workspace), `scan_privacy.py` (secrets and PII, masked on output), `check_facts.py` (one ledger against several resume versions — cross-version conflicts, unrecorded numbers, idle material), then the agent's semantic pass (follow-up tree / conventions / attribution). Nothing ships with an unresolved fail.
 - **JD parsing** — paste the job description whole; `parse_jd.py` turns it into a grouped, frequency-sorted keyword list and prints the exact `--keywords` string the linter takes. High-frequency words are hard requirements, single mentions are bonuses, and that ordering is the priority order for the evidence map.
 - **Multi-project budgeting** — one page holds 12–20 lines of project experience, so "how many projects, how many bullets each, who goes first" is arithmetic rather than taste. A 3-axis score (job fit + defence score + distinctiveness) sorts every experience into L1 full / L2 compact / L3 one-liner / L4 interview-only; a project with a defence score of 0 can never exceed L2, and projects are ordered by relevance rather than recency. Cut material moves into the fact ledger, never into the bin.
+- **English and internship branches** — an English job description does not produce a translation, it produces a different writing system: past-tense verbs first, articles dropped, units kept, one spelling convention, 120 characters per line. Having an internship flips the discipline from "push the wording" to "be precise" — the evidence is stronger, but so is the verification: NDA boundaries, a clear statement of which part was yours, and the four questions every internship gets asked.
 - **Defence score** — each bullet gets 0–3 points (evidence strength + follow-up-tree coverage); anything below 2 is barred from the Intensified tier.
 - **ATS adaptation** — a plain-text version spec plus JD keyword coverage, with missing keywords sorted into three categories; no keyword stuffing, no hidden text.
 - **Retrospective write-back** — real interview questions that the follow-up tree did not anticipate get written back into the tree and banked; hit-rate statistics drive the next round.
@@ -66,7 +67,9 @@ project-packer/
 │   ├── example-student-work.md     # contrast example: student work without hard numbers
 │   ├── example-software.md         # software example: self-measured metrics + three job-target variants
 │   ├── example-delivery.md         # a fully filled delivery package (all seven sections)
-│   └── multi-project.md            # fitting several projects onto one page: budget, tiers, scoring, ordering
+│   ├── multi-project.md            # fitting several projects onto one page: budget, tiers, scoring, ordering
+│   ├── english-resume.md           # writing the English version: rules, Chinglish table, before/after
+│   └── with-internship.md          # when you DO have an internship: NDA lines, ownership, four questions
 ├── templates/                      # copy-paste starting points
 │   ├── facts.template.md           # fact ledger skeleton
 │   ├── question-bank.template.md   # interview question bank skeleton
@@ -75,11 +78,12 @@ project-packer/
 │   ├── lint_resume.py              # mechanical audit (verbs / red flags / dates / numbers)
 │   ├── parse_jd.py                 # turns a raw job description into the keyword list
 │   ├── trace_numbers.py            # traces every number in a draft back to a real file
+│   ├── check_timeline.py           # merged timeline: reversed ranges, overlaps, gaps
 │   ├── check_facts.py              # one ledger x several resume versions: conflicts / orphans / idle
 │   ├── scan_privacy.py             # secrets and PII scanner, masks what it finds
 │   ├── check_docs.py               # documentation consistency (version / counts / cross-refs / links)
 │   └── _common.py                  # shared file walker used by the two scanners
-├── tests/                          # unittest suite for all six scripts (zero dependency)
+├── tests/                          # unittest suite for all seven scripts (zero dependency)
 ├── evals.md                        # regression test cases (must run after any revision)
 └── .github/workflows/ci.yml        # tests + doc checks on every push
 ```
@@ -100,7 +104,7 @@ project-packer/
 
 ## Offline checks
 
-Four checks run without the agent — pure standard library, no `pip install`. They are the executable form of the four claims this skill makes: *the wording is defensible*, *the numbers are real*, *nothing private leaked*, *the versions agree with each other*.
+Five checks run without the agent — pure standard library, no `pip install`. They are the executable form of the five claims this skill makes: *the wording is defensible*, *the numbers are real*, *nothing private leaked*, *the versions agree with each other*, *the timeline holds up*.
 
 ### 1. Mechanical audit — `lint_resume.py`
 
@@ -215,13 +219,46 @@ Two confidence levels, and the split is the point:
 
 What neither catches: the same metric reworded so thoroughly that even the surrounding words change. The tool reports what it can prove; guessing at the rest would train users to ignore it. `IDLE` is deliberately informational — L4 material is *supposed* to stay off the resume.
 
+### 5. Timeline — `check_timeline.py`
+
+"Check the overall timeline" was the last hard constraint with no executable form. `lint_resume.py` checks that date *formats* are consistent; it says nothing about how the ranges relate.
+
+```bash
+python3 scripts/check_timeline.py resume.md
+python3 scripts/check_timeline.py resume.md --today 2026.10 --gap-months 3
+```
+
+```
+总时间轴
+  2022.09 - 2026.06   XX大学 计算机科学与技术（本科）
+  2024.05               校级一等奖学金
+  2025.03 - 2025.06   XX科技 后端开发实习生（全职）
+  2025.05 - 2025.08   YY网络 数据平台实习生（全职）
+  2025.09 - 2025.12   校园二手书交易服务（课程项目 · 3 小组）
+
+[ERROR] REVERSED 区间倒挂：2025.12-2025.09「毕业设计：推荐系统」结束早于开始
+[WARN]  OVERLAP 2025.05-2025.06 重叠 2 个月：「XX科技 后端开发实习生（全职）」×「YY网络 数据平台实习生（全职）」 两段都声称占满时间 → 确认是否矛盾
+```
+
+The merged timeline is the actual deliverable here — it is what "核对总时间轴" looks like when it becomes a command instead of an instruction. Noise control is deliberate and matters more than coverage:
+
+| Suppressed | Why |
+|---|---|
+| Overlap with an education entry | A degree spans four years; every internship overlaps it. Reporting it means three yellow lines on every student resume. |
+| Two entries with an identical range | Two course projects in the same semester is normal, not a contradiction. |
+| Point dates (awards, certificates) | They are not spans, so they cannot overlap anything. |
+| Table rows | A delivery package's audit table is full of dates; parsing them invents overlaps and reversals out of nowhere. |
+
+Overlap is only a `WARN` when **both** sides claim to occupy full time (`全职` / `实习` / `在职`). Otherwise it is `INFO` and labelled as parallel experience. Reversed ranges are the only `ERROR`, because they are the only thing that is unambiguously wrong.
+
 ## Development
 
 ```bash
-python3 -m unittest discover -s tests -v   # unit tests for all six scripts
+python3 -m unittest discover -s tests -v   # unit tests for all seven scripts
 python3 scripts/check_docs.py              # version / stage count / audit items / cross-refs / links / eval numbering / changelog / tree / paths
 python3 scripts/lint_resume.py references/example-battery.md --strict
 python3 scripts/lint_resume.py references/example-delivery.md --strict
+python3 scripts/check_timeline.py references/example-delivery.md --today 2026.10
 ```
 
 `check_docs.py` exists because this project ships nothing but Markdown: writing "21 items" when the checklist actually has 22 produces no compiler error, it just quietly misleads. The checker turns that class of drift into a failing exit code — eleven checks, including four added after they caught real mistakes here: an eval group that skipped a number, a version bumped without a changelog entry, a new `references/` file missing from the README directory tree, and a `references/…` path in `SKILL.md` pointing at a file that does not exist. CI runs all three commands on Python 3.9 / 3.11 / 3.13.
@@ -259,6 +296,25 @@ Three files exist purely so the first run does not start from a blank page:
 | [`templates/question-bank.template.md`](templates/question-bank.template.md) | Copy after your first real interview. One real question = one record, marked ✅ hit / 🟡 outside the tree / ❌ collapsed. |
 
 ## Changelog
+
+<details>
+<summary><b>v2.8.0</b> (2026-10-22) — the timeline, the English version, and the internship case</summary>
+
+Four gaps left over from the last audit, and the first one is the last hard constraint without a tool.
+
+**`check_timeline.py`** makes "核对总时间轴" a command instead of an instruction. It merges every date range in a draft into one timeline, then reports reversed ranges (`ERROR`), future start dates (`WARN`), overlaps between two experiences that both claim full time (`WARN`), and gaps over six months (`INFO`). The merged timeline is the real deliverable — it is what the constraint was asking you to look at all along.
+
+Most of the work went into what *not* to report, because a timeline checker that fires on every student resume gets switched off in a week. Suppressed: overlaps with an education entry (a degree spans four years, everything overlaps it), two entries with an identical range (two projects in one semester is normal), point dates like awards (not spans, cannot overlap), and table rows (a delivery package's audit table is full of dates and will invent reversals out of nowhere). Overlap is only a warning when both sides say 全职/实习/在职; otherwise it is labelled parallel experience. Four of those five rules were added after watching the first version produce noise on a realistic resume.
+
+**`references/english-resume.md`** — the English switch used to mean "output a bilingual version", which in practice produced a translation. A translation is not an English resume: `Responsible for realizing 12 REST interfaces` is grammatically fine and reads as non-native in the first three words. The doc covers five hard rules (past-tense verb first, article policy, units never dropped, one spelling convention, 120 characters per line), a Chinglish table, the English for each carrier type (`Course Project`, never `Project Intern`), and one complete before/after where the numbers are identical across both languages.
+
+**`references/with-internship.md`** — the reverse gap. The skill was born as `internship-packer` and then spent every release solving "no internship", saying nothing about people who have one. The discipline flips: stronger evidence, but easier verification, so the job is precision rather than force. Covers the four phrasing differences from personal projects, whether to name the company, four NDA boundaries with a script for "can you go into detail", the four questions every internship gets asked, big-company-specialist versus small-company-full-stack, and how to handle an internship shorter than three months.
+
+**`references/drill-mode.md`** grew from 28 lines to a full spec. The gap that mattered: the old version used one set of questions for every role, but an algorithms interviewer digs at complexity, a backend interviewer digs at failure modes, a QA interviewer digs at judgement criteria. Adds a per-role table, a pressure-interview track, five angles for questions outside the tree, a battle-report template, and six anti-patterns including the one that ruins most practice sessions — going easy when the user stalls.
+
+Tests 173 → 206.
+
+</details>
 
 <details>
 <summary><b>v2.7.0</b> (2026-10-22) — the last four claims become executable</summary>

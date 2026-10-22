@@ -5,7 +5,7 @@
 **把真实做过的事包装成面试可防守的高强度项目经历——措辞可以拉满，事实一个不能动。**
 
 ![ci](https://github.com/ilo-love7/project-packer/actions/workflows/ci.yml/badge.svg)
-![version](https://img.shields.io/badge/version-2.7.0-blue)
+![version](https://img.shields.io/badge/version-2.8.0-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
 ![type](https://img.shields.io/badge/agent%20skill-SKILL.md-orange)
 
@@ -33,8 +33,9 @@
 - **载体重定位**：提前备好"这段是实习吗 / 为什么你没有实习经历"的进攻性回答，把非实习载体翻译成自驱力证据
 - **事实档案**：每个用户一份 facts.md 唯一事实源（数字+口径+证据指针+两档定稿+防守分），输出前强制 diff，多次包装不漂移
 - **陪练模式**：agent 扮演面试官逐层追问，三维反馈，答崩的表述降档、问题回写追问树与真题库
-- **五层审计**：四层可执行检查 + 一层语义审计——`lint_resume.py`（动词/红灯词/日期/数字/关键词）、`trace_numbers.py`（每个数字回溯到工作区的 文件:行号）、`scan_privacy.py`（密钥与隐私，输出自带打码）、`check_facts.py`（一份档案 × 多份简历：跨版本冲突、未入档数字、闲置素材），最后由 agent 做语义层（追问树/口径/归属）。存在未处理的 fail 不得交稿。
+- **五层审计**：四层可执行检查 + 一层语义审计——`lint_resume.py`（动词/红灯词/日期/数字/关键词）、`check_timeline.py`（总时间轴：倒挂/重叠/空档）、`trace_numbers.py`（每个数字回溯到工作区的 文件:行号）、`scan_privacy.py`（密钥与隐私，输出自带打码）、`check_facts.py`（一份档案 × 多份简历：跨版本冲突、未入档数字、闲置素材），最后由 agent 做语义层（追问树/口径/归属）。存在未处理的 fail 不得交稿。
 - **JD 解析**：把 JD 整段粘进来，`parse_jd.py` 拆成分组、按频次排序的关键词表，并直接打印 `--keywords` 参数。高频词是硬要求、单次提及是加分项，这个顺序就是证据映射表的优先级。
+- **英文与有实习两个分支**：英文 JD 不是翻译，是另一套写法——过去式动词开头、去冠词、单位不省、拼写统一、每条 120 字符；有实习时纪律从"措辞拉满"翻转成"写得准"——证据更强但验证也更容易，要守 NDA 边界、划清自己负责的那部分、备好四个必问题。
 - **多项目取舍**：一页简历的项目经历只有 12-20 行，"写几个、每个几条、谁排第一"是算术问题不是审美问题。三维打分（岗位匹配 + 防守分 + 区分度）把每段经历落进 L1 完整 / L2 精简 / L3 一行 / L4 只进面试；**防守分 = 0 的经历最高只能到 L2**，项目按相关度而非时间倒序排。被砍的素材进档案，不进垃圾桶。
 - **防守分评分卡**：每条 bullet 0~3 分（证据强度 + 追问树覆盖），<2 分禁入强化档
 - **ATS 适配**：纯文本版规范 + JD 关键词覆盖率，缺词三分类，不堆砌不隐写
@@ -66,7 +67,9 @@ project-packer/
 │   ├── example-student-work.md     # 对照示例：无硬数字的学生工作
 │   ├── example-software.md         # 软件工程示例：自测指标 + 三种岗位换弹头
 │   ├── example-delivery.md         # 完整交付包示例：七节全部填满
-│   └── multi-project.md            # 多项目压一页：版面预算、压缩阶梯、打分表、排序
+│   ├── multi-project.md            # 多项目压一页：版面预算、压缩阶梯、打分表、排序
+│   ├── english-resume.md           # 英文简历写法：五条硬规则、中式英语对照、before/after
+│   └── with-internship.md          # 有实习怎么写：NDA 边界、归属划清、四个必问题
 ├── templates/                      # 直接复制就能用的起稿模板
 │   ├── facts.template.md           # 事实档案骨架
 │   ├── question-bank.template.md   # 真题库骨架
@@ -75,11 +78,12 @@ project-packer/
 │   ├── lint_resume.py              # 机械层审计（动词/红灯词/日期/数字）
 │   ├── parse_jd.py                 # 把 JD 原文拆成关键词表
 │   ├── trace_numbers.py            # 把交付稿里每个数字回溯到工作区里的真实出处
+│   ├── check_timeline.py           # 总时间轴：倒挂 / 重叠 / 空档
 │   ├── check_facts.py              # 一份档案 × 多份简历：冲突 / 未入档 / 闲置
 │   ├── scan_privacy.py             # 密钥与隐私扫描，命中内容自动打码
 │   ├── check_docs.py               # 文档一致性（版本号/条目数/章节引用/相对链接）
 │   └── _common.py                  # 两个扫描器共用的文件遍历
-├── tests/                          # 六个脚本的单元测试（零依赖）
+├── tests/                          # 七个脚本的单元测试（零依赖）
 ├── evals.md                        # 回归测试用例（改版后必跑）
 └── .github/workflows/ci.yml        # 每次推送跑测试 + 文档检查
 ```
@@ -100,7 +104,7 @@ project-packer/
 
 ## 离线检查
 
-四个检查都不需要 agent，纯标准库，不用 `pip install`。它们分别把四条承诺变成可执行的东西：**措辞防守得住**、**数字是真的**、**没漏隐私**、**多个版本之间对得上**。
+五个检查都不需要 agent，纯标准库，不用 `pip install`。它们分别把五条承诺变成可执行的东西：**措辞防守得住**、**数字是真的**、**没漏隐私**、**多个版本之间对得上**、**时间线站得住**。
 
 ### 1. 机械层审计 —— `lint_resume.py`
 
@@ -215,13 +219,48 @@ python3 scripts/check_facts.py facts.md "简历-*.md"
 
 两者都覆盖不到的情况：同一指标换了说法、连周围用词都换了。工具只报它确定的部分——把猜出来的当错误报，用户很快就会把它关掉。`IDLE` 刻意只做提示：L4 素材按设计就不该出现在简历里。
 
+### 5. 时间线 —— `check_timeline.py`
+
+"核对总时间轴"是最后一条没有可执行形式的硬约束。`lint_resume.py` 只查日期**格式**是否统一，不看区间之间是什么关系。
+
+```bash
+python3 scripts/check_timeline.py resume.md
+python3 scripts/check_timeline.py resume.md --today 2026.10 --gap-months 3
+```
+
+```
+总时间轴
+  2022.09 - 2026.06   XX大学 计算机科学与技术（本科）
+  2024.05               校级一等奖学金
+  2025.03 - 2025.06   XX科技 后端开发实习生（全职）
+  2025.05 - 2025.08   YY网络 数据平台实习生（全职）
+  2025.09 - 2025.12   校园二手书交易服务（课程项目 · 3 人小组）
+
+[ERROR] REVERSED 区间倒挂：2025.12-2025.09「毕业设计：推荐系统」结束早于开始
+[WARN]  OVERLAP 2025.05-2025.06 重叠 2 个月：「XX科技 后端开发实习生（全职）」×「YY网络 数据平台实习生（全职）」 两段都声称占满时间 → 确认是否矛盾
+```
+
+**合并出来的那张总时间轴才是真正的交付物**——它就是"核对总时间轴"这句话变成一个命令之后的样子。
+
+噪音控制比覆盖面更重要，这几类刻意不报：
+
+| 不报 | 为什么 |
+|---|---|
+| 与教育背景重叠 | 一段学历跨四年，任何实习都和它重叠。报出来等于每份学生简历都刷三条黄字 |
+| 两段区间完全相同 | 同一学期的两个课程项目本来就该同区间，不是矛盾 |
+| 单点日期（奖项、证书） | 不是区间，不可能和别人重叠 |
+| 表格行 | 交付包的审计表里到处是日期，解析它只会凭空造出重叠和倒挂 |
+
+重叠只有在**两边都声称占满时间**（全职/实习/在职）时才升级为 WARN，其余标为并行经历。倒挂是唯一的 ERROR，因为它是唯一明确写错的东西。
+
 ## 开发
 
 ```bash
-python3 -m unittest discover -s tests -v   # 六个脚本的单元测试
+python3 -m unittest discover -s tests -v   # 七个脚本的单元测试
 python3 scripts/check_docs.py              # 版本 / 阶段数 / 审计条数 / 章节引用 / 链接 / 用例编号 / 更新日志 / 目录树 / 路径引用
 python3 scripts/lint_resume.py references/example-battery.md --strict
 python3 scripts/lint_resume.py references/example-delivery.md --strict
+python3 scripts/check_timeline.py references/example-delivery.md --today 2026.10
 ```
 
 `check_docs.py` 的存在理由：这个项目发布的东西全是 Markdown，写错一个数字（清单实际 22 条却写"21 条"）不会有编译错误，只会悄悄误导用户和 agent 自己。检查器把这类漂移变成会失败的退出码——现在共十一项，其中四项是因为它真的抓到了这个仓库自己的错：用例分组跳号、升了版本没写更新日志、新增的 `references/` 文件忘了进 README 目录树、`SKILL.md` 里写了一个不存在的 `references/…` 路径。CI 在 Python 3.9 / 3.11 / 3.13 上跑这三条命令。
@@ -259,6 +298,25 @@ python3 scripts/lint_resume.py references/example-delivery.md --strict
 | [templates/question-bank.template.md](templates/question-bank.template.md) | 面完第一场就复制。一条真实问题 = 一条记录，标 ✅ 命中 / 🟡 树外答上 / ❌ 答崩 |
 
 ## 更新日志
+
+<details>
+<summary><b>v2.8.0</b>（2026-10-22）时间线、英文版、以及有实习的那一类</summary>
+
+上一轮盘点剩下的四个缺口，第一个是最后一条没有工具兜着的硬约束。
+
+**`check_timeline.py`** 把"核对总时间轴"从一句要求变成一个命令。它把稿子里所有时间区间合并成一张总时间轴，然后报：区间倒挂（ERROR）、开始时间在未来（WARN）、两段都声称占满时间的经历重叠（WARN）、空档超过 6 个月（INFO）。合并出来的那张表才是真正的交付物——约束本来想让你看的就是它。
+
+大部分工夫花在**不该报什么**上，因为一个见谁都喊"时间线矛盾"的检查器活不过一周。刻意不报的有：与教育背景重叠（一段学历跨四年，什么都和它重叠）、两段区间完全相同（同期的两个项目是常态）、单点日期如奖项（不是区间，重叠不了）、表格行（交付包的审计表里全是日期，解析它只会凭空造出倒挂）。重叠只有在两边都写了全职/实习/在职时才升级为 WARN，其余标为并行经历。这五条里有四条是看着第一版在真实简历上刷屏之后补的。
+
+**`references/english-resume.md`**——原来的"英文开关"只意味着"输出双版"，实际做出来的是一份翻译。翻译不是英文简历：`Responsible for realizing 12 REST interfaces` 语法没错，但前三个词就暴露了。文档给了五条硬规则（过去式动词开头、冠词处理、单位不省、拼写统一、每条 120 字符）、一张中式英语对照表、各载体的英文说法（是 `Course Project`，不是 `Project Intern`），以及一份数字完全一致的完整 before/after。
+
+**`references/with-internship.md`**——反向缺口。这个 skill 从 `internship-packer` 转型而来，然后每个版本都在解决"没有实习"，对"有实习"一个字没写。纪律是翻转的：证据更强，但验证也更容易，所以要做的是写得准而不是写得狠。覆盖了与个人项目的四条措辞差异、公司名写不写、四条 NDA 界线加"能细说吗"的答法、实习必被问的四个问题、大厂螺丝钉与小厂全栈两种写法、不足三个月怎么处理。
+
+**`references/drill-mode.md`** 从 28 行扩成完整规范。最要紧的缺口是：老版本对所有岗位用同一套题，但算法岗挖复杂度、后端岗挖故障、测试岗挖判据。新增按岗位的追问风格表、压力面专项、树外五角度、战报模板，以及六条反模式——包括毁掉大多数陪练的那一条：用户一卡就放水。
+
+测试 173 → 206。
+
+</details>
 
 <details>
 <summary><b>v2.7.0</b>（2026-10-22）最后四条承诺也变成可执行检查</summary>

@@ -46,6 +46,10 @@ jobs:
           python scripts/lint_resume.py references/example-software.md --strict
           python scripts/lint_resume.py references/example-delivery.md --strict
 
+      # 参考示例的时间线也必须自洽
+      - name: Check the example timeline
+        run: python scripts/check_timeline.py references/example-delivery.md --today 2026.10
+
       - name: Check that lint actually catches a broken resume
         run: |
           cat > /tmp/bad.md <<'EOF'
@@ -167,5 +171,35 @@ jobs:
           echo "$out" | grep -q "沟通协调" || { echo "::error::未抽出中文软技能词"; exit 1; }
           if echo "$out" | grep -qi "Kubernetes"; then
             echo "::error::抽出了 JD 里没有的词"
+            exit 1
+          fi
+
+      - name: check_timeline catches a reversed range
+        run: |
+          printf -- '- 毕业设计  2025.12-2025.09\n' > /tmp/tl.md
+          set +e
+          out=$(python scripts/check_timeline.py /tmp/tl.md --today 2026.10)
+          code=$?
+          set -e
+          echo "$out"
+          [ "$code" -eq 2 ] || { echo "::error::倒挂区间应返回 2，实际 $code"; exit 1; }
+          echo "$out" | grep -q "REVERSED" || { echo "::error::未报出区间倒挂"; exit 1; }
+
+      - name: check_timeline stays quiet on parallel experience
+        run: |
+          cat > /tmp/tl2.md <<'EOF'
+          - XX大学 计算机（本科）  2022.09-2026.06
+          - 后端实习生（全职）      2025.03-2025.06
+          - 课程项目               2025.05-2025.09
+          EOF
+          set +e
+          out=$(python scripts/check_timeline.py /tmp/tl2.md --today 2026.10)
+          code=$?
+          set -e
+          echo "$out"
+          # 教育背景不参与重叠；实习与课程项目重叠只算并行，不该是 WARN
+          [ "$code" -eq 0 ] || { echo "::error::并行经历不应报错，实际 $code"; exit 1; }
+          if echo "$out" | grep -q "\[WARN\]"; then
+            echo "::error::并行经历被报成警告"
             exit 1
           fi
