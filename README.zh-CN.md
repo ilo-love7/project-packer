@@ -5,7 +5,7 @@
 **把真实做过的事包装成面试可防守的高强度项目经历——措辞可以拉满，事实一个不能动。**
 
 ![ci](https://github.com/ilo-love7/project-packer/actions/workflows/ci.yml/badge.svg)
-![version](https://img.shields.io/badge/version-2.5.0-blue)
+![version](https://img.shields.io/badge/version-2.6.0-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
 ![type](https://img.shields.io/badge/agent%20skill-SKILL.md-orange)
 
@@ -34,6 +34,7 @@
 - **事实档案**：每个用户一份 facts.md 唯一事实源（数字+口径+证据指针+两档定稿+防守分），输出前强制 diff，多次包装不漂移
 - **陪练模式**：agent 扮演面试官逐层追问，三维反馈，答崩的表述降档、问题回写追问树与真题库
 - **四层审计**：三层可执行检查 + 一层语义审计——`lint_resume.py`（动词/红灯词/日期/数字/关键词）、`trace_numbers.py`（每个数字回溯到工作区的 文件:行号）、`scan_privacy.py`（密钥与隐私，输出自带打码），最后由 agent 做语义层（追问树/口径/归属）。存在未处理的 fail 不得交稿。
+- **多项目取舍**：一页简历的项目经历只有 12-20 行，"写几个、每个几条、谁排第一"是算术问题不是审美问题。三维打分（岗位匹配 + 防守分 + 区分度）把每段经历落进 L1 完整 / L2 精简 / L3 一行 / L4 只进面试；**防守分 = 0 的经历最高只能到 L2**，项目按相关度而非时间倒序排。被砍的素材进档案，不进垃圾桶。
 - **防守分评分卡**：每条 bullet 0~3 分（证据强度 + 追问树覆盖），<2 分禁入强化档
 - **ATS 适配**：纯文本版规范 + JD 关键词覆盖率，缺词三分类，不堆砌不隐写
 - **复盘回写**：真实面试被问到但追问树里没有的问题，回写进树并沉淀真题库，命中率统计驱动下次包装
@@ -62,7 +63,8 @@ project-packer/
 │   ├── drill-mode.md               # 陪练模式：面试官追问 + 回写
 │   ├── example-battery.md          # 黄金示例：有硬数据的科研复现项目
 │   ├── example-student-work.md     # 对照示例：无硬数字的学生工作
-│   └── example-software.md         # 软件工程示例：自测指标 + 三种岗位换弹头
+│   ├── example-software.md         # 软件工程示例：自测指标 + 三种岗位换弹头
+│   └── multi-project.md            # 多项目压一页：版面预算、压缩阶梯、打分表、排序
 ├── templates/                      # 直接复制就能用的起稿模板
 │   ├── facts.template.md           # 事实档案骨架
 │   ├── question-bank.template.md   # 真题库骨架
@@ -178,6 +180,21 @@ python3 scripts/lint_resume.py references/example-battery.md --strict
 - [example-student-work.md](references/example-student-work.md)：174 人英语打卡活动 → 替代量化、激励失效冲突 STAR、"为什么没有实习经历"话术
 - [example-software.md](references/example-software.md)：三人小组课程项目后端 → p95 480ms→90ms、覆盖率 61%→84%、CI 7分20秒→2分10秒；展示同一段经历按研发/测试/工程三种岗换弹头的写法，以及小组项目里"这是你自己做的吗"的标准答法
 
+## 取舍：一页放不下时
+
+大多数人的难点不是"一段经历怎么写强"，而是有五段经历、页面只放得下两段。[references/multi-project.md](references/multi-project.md) 把这件事当成算术题做：
+
+| 项目数 | 每个能分到的 bullet | 结果 |
+|---|---|---|
+| 2 个 | 5-6 条 | 甜点区，每段都讲得透 |
+| 3 个 | 3-4 条 | 刚好，但必须有一个明显主打 |
+| 4 个 | 2-3 条 | 每个都浅，读者记不住任何一个 |
+| 5 个以上 | 1-2 条 | 已经变成清单，不是简历 |
+
+每段经历按三个维度各打 0-3 分（岗位匹配 / 防守分 / 区分度），落进四档：**L1** 完整版（4-6 条）｜ **L2** 精简版（2-3 条）｜ **L3** 一行版（进"其他项目"区块）｜ **L4** 只进面试、不上简历。**防守分 = 0 的经历（纯口述、无任何指针）无论其他两项多高，最高只能到 L2。** 排序按与岗位的相关度而不是时间倒序——第一段承担"记忆点"职责。
+
+被砍掉的经历不删除：挪进 `facts.md` 与追问树，等面试官问"你还做过什么"时用。**取舍的是版面，不是素材。**
+
 ## 从这里开始
 
 这三个模板存在的唯一目的，是让第一次跑不用面对空白页：
@@ -189,6 +206,19 @@ python3 scripts/lint_resume.py references/example-battery.md --strict
 | [templates/question-bank.template.md](templates/question-bank.template.md) | 面完第一场就复制。一条真实问题 = 一条记录，标 ✅ 命中 / 🟡 树外答上 / ❌ 答崩 |
 
 ## 更新日志
+
+<details>
+<summary><b>v2.6.0</b>（2026-10-22）多项目压一页简历的取舍</summary>
+
+这个 skill 一直擅长"把一段经历写强"，但对大多数人真正面对的局面一言不发：五段经历，一页纸，不知道该留哪两段。这份缺口现在由 `references/multi-project.md` 补上。
+
+切入角度刻意不浪漫。一页 A4、10.5pt，正文约 45-52 行，项目经历能分到 12-20 行——换算下来两个项目各 5-6 条，五个项目各 1-2 条。到 1-2 条的时候它已经不是简历，是清单。所以默认答案是 2-3 个；每段经历按三个维度各打 0-3 分（岗位匹配 / 防守分 / 区分度），落进四档：L1 完整版、L2 精简版、L3 一行版（进"其他项目"）、L4 只进面试。两条不可让步：**防守分 = 0 的经历（纯口述、无任何证据指针）无论总分多高，最高只能到 L2**；项目按与岗位的相关度排而不是时间倒序，因为第一段承担记忆点。
+
+最让人犹豫的是 L4，所以文档把话说白了：**被砍掉的是版面，不是素材。** 落选的经历挪进 `facts.md` 与追问树，用来回答"你还做过什么"。此外还写了：一人多岗的多版本管理（一份档案、多份简历、数字全版本一致）、7 条反模式（含"为了塞内容调小字号"）、1 个 / 3 个 / 6 个项目三种局面的完整走法。
+
+同时把 `SKILL.md` frontmatter 的 `description` 从 269 字压到 196 字。skill 列表会截断，而被截掉的恰好是触发词所在的后半段——现在触发短语更靠前，并且把"多项目取舍"列进了支持模式。
+
+</details>
 
 <details>
 <summary><b>v2.5.0</b>（2026-10-22）起稿模板 + 补齐缺失的软件工程示例</summary>

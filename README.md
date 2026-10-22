@@ -5,7 +5,7 @@
 **Turn what you have actually done into interview-proof project experience — push the wording as hard as the facts allow, never touch the facts themselves.**
 
 ![ci](https://github.com/ilo-love7/project-packer/actions/workflows/ci.yml/badge.svg)
-![version](https://img.shields.io/badge/version-2.5.0-blue)
+![version](https://img.shields.io/badge/version-2.6.0-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
 ![type](https://img.shields.io/badge/agent%20skill-SKILL.md-orange)
 
@@ -34,6 +34,7 @@ This is not a resume beautifier, and it is not a fabrication assistant. The core
 - **Fact ledger** — one `facts.md` as the single source of truth per user (numbers + convention + evidence pointer + both final tiers + defence score); a forced diff before every output so repeated packaging never drifts.
 - **Sparring mode** — the agent plays the interviewer and drills down layer by layer with three-dimensional feedback; statements that collapse get downgraded, and the questions get written back into the follow-up tree and question bank.
 - **Four-layer audit** — three executable checks plus one semantic layer: `lint_resume.py` (verbs / red flags / dates / numbers / keywords), `trace_numbers.py` (every number back to a file:line in your workspace), `scan_privacy.py` (secrets and PII, masked on output), then the agent's semantic pass (follow-up tree / conventions / attribution). Nothing ships with an unresolved fail.
+- **Multi-project budgeting** — one page holds 12–20 lines of project experience, so "how many projects, how many bullets each, who goes first" is arithmetic rather than taste. A 3-axis score (job fit + defence score + distinctiveness) sorts every experience into L1 full / L2 compact / L3 one-liner / L4 interview-only; a project with a defence score of 0 can never exceed L2, and projects are ordered by relevance rather than recency. Cut material moves into the fact ledger, never into the bin.
 - **Defence score** — each bullet gets 0–3 points (evidence strength + follow-up-tree coverage); anything below 2 is barred from the Intensified tier.
 - **ATS adaptation** — a plain-text version spec plus JD keyword coverage, with missing keywords sorted into three categories; no keyword stuffing, no hidden text.
 - **Retrospective write-back** — real interview questions that the follow-up tree did not anticipate get written back into the tree and banked; hit-rate statistics drive the next round.
@@ -62,7 +63,8 @@ project-packer/
 │   ├── drill-mode.md               # sparring mode: interviewer drill-down + write-back
 │   ├── example-battery.md          # golden example: a research reproduction with hard data
 │   ├── example-student-work.md     # contrast example: student work without hard numbers
-│   └── example-software.md         # software example: self-measured metrics + three job-target variants
+│   ├── example-software.md         # software example: self-measured metrics + three job-target variants
+│   └── multi-project.md            # fitting several projects onto one page: budget, tiers, scoring, ordering
 ├── templates/                      # copy-paste starting points
 │   ├── facts.template.md           # fact ledger skeleton
 │   ├── question-bank.template.md   # interview question bank skeleton
@@ -178,6 +180,21 @@ python3 scripts/lint_resume.py references/example-battery.md --strict
 - [`references/example-student-work.md`](references/example-student-work.md) — a 174-person English check-in activity → substitute quantification, an incentive-failure conflict STAR, and the "why no internship" script.
 - [`references/example-software.md`](references/example-software.md) — a three-person course project backend → p95 480ms→90ms, coverage 61%→84%, CI 7m20s→2m10s; shows the same experience rewritten for a backend, a QA and a platform role, plus how to answer "is this all your own work?" on a team project.
 
+## Choosing what to show
+
+Most people's problem is not writing one experience well — it is having five and a page that fits two. [`references/multi-project.md`](references/multi-project.md) treats that as arithmetic:
+
+| Projects | Bullets each | Verdict |
+|---|---|---|
+| 2 | 5–6 | sweet spot — each one gets room to breathe |
+| 3 | 3–4 | workable, but one must clearly lead |
+| 4 | 2–3 | all shallow, none memorable |
+| 5+ | 1–2 | a list, not a resume |
+
+Every experience gets scored 0–3 on three axes (job fit / defence score / distinctiveness) and lands in one of four tiers: **L1** full (4–6 bullets) ｜ **L2** compact (2–3) ｜ **L3** one line under "Other projects" ｜ **L4** interview-only, off the resume. A defence score of 0 caps an experience at L2 no matter how good the rest looks. Ordering is by relevance, not recency — the first project carries the memory hook.
+
+What gets cut does not get deleted: it moves into `facts.md` and the follow-up tree, waiting for "tell me about something else you built". **What you are cutting is page space, not material.**
+
 ## Start here
 
 Three files exist purely so the first run does not start from a blank page:
@@ -189,6 +206,19 @@ Three files exist purely so the first run does not start from a blank page:
 | [`templates/question-bank.template.md`](templates/question-bank.template.md) | Copy after your first real interview. One real question = one record, marked ✅ hit / 🟡 outside the tree / ❌ collapsed. |
 
 ## Changelog
+
+<details>
+<summary><b>v2.6.0</b> (2026-10-22) — what to do when you have more projects than page</summary>
+
+The skill could take one experience and make it strong. It had nothing to say about the situation almost everyone is actually in: five experiences, one page, and no basis for deciding which two to keep. That gap is now `references/multi-project.md`.
+
+The framing is deliberately unromantic. A one-page A4 at 10.5pt holds roughly 45–52 lines of body text, of which project experience gets 12–20 — which means two projects get 5–6 bullets each and five projects get 1–2. At that point it stops being a resume and becomes a list. So the default answer is 2–3, and the decision per experience is a 3-axis score (job fit / defence score / distinctiveness, 0–3 each) that lands it in one of four tiers: L1 full, L2 compact, L3 one line under "Other projects", L4 interview-only. Two rules are non-negotiable: an experience with a defence score of 0 — pure verbal account, no evidence pointer — can never exceed L2, and projects are ordered by relevance rather than recency, because the first one carries the memory hook.
+
+The part people resist is L4, so the document is explicit about it: **what gets cut is page space, not material.** Dropped experiences move into `facts.md` and the follow-up tree, where they answer "tell me about something else you built". Also covered: multi-version management (one ledger, several resumes, numbers identical across all of them), seven anti-patterns including "shrink the font to fit more", and full walkthroughs for the 1-project, 3-project and 6-project cases.
+
+Also rewrites the `description` in `SKILL.md` frontmatter from 269 to 196 characters. Skill lists truncate, and a description that gets clipped loses exactly the part that triggers it — the trigger phrases now come earlier, and multi-project selection is named as a supported mode.
+
+</details>
 
 <details>
 <summary><b>v2.5.0</b> (2026-10-22) — templates to start from, and the missing software example</summary>
