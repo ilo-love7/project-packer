@@ -4,6 +4,7 @@
 
 **Turn what you have actually done into interview-proof project experience — push the wording as hard as the facts allow, never touch the facts themselves.**
 
+![ci](https://github.com/ilo-love7/project-packer/actions/workflows/ci.yml/badge.svg)
 ![version](https://img.shields.io/badge/version-2.3.0-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
 ![type](https://img.shields.io/badge/agent%20skill-SKILL.md-orange)

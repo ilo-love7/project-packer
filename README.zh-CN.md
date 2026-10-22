@@ -4,6 +4,7 @@
 
 **把真实做过的事包装成面试可防守的高强度项目经历——措辞可以拉满，事实一个不能动。**
 
+![ci](https://github.com/ilo-love7/project-packer/actions/workflows/ci.yml/badge.svg)
 ![version](https://img.shields.io/badge/version-2.3.0-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
 ![type](https://img.shields.io/badge/agent%20skill-SKILL.md-orange)
