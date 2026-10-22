@@ -173,6 +173,7 @@
 
 | 检查 | 命令 | 结果 |
 |---|---|---|
+| 结构层 | `check_delivery.py 本文件` | ERROR [N] / WARN [N] |
 | 机械层 | `lint_resume.py 本文件 --facts facts.md --keywords "..."` | ERROR [N] / WARN [N] |
 | 时间线 | `check_timeline.py 本文件` | REVERSED [N] / OVERLAP [N] / GAP [N] |
 | 溯源层 | `trace_numbers.py 本文件 工作区路径` | 命中 [X] / 未命中 [Y] |

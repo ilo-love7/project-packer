@@ -238,3 +238,26 @@ jobs:
               exit 1
             fi
           done
+
+      - name: check_delivery catches a leftover placeholder and a missing section
+        run: |
+          # 合格示例必须零告警
+          python scripts/check_delivery.py references/example-delivery.md
+          # 插回模板占位符 → ERROR
+          sed 's/^## 7. 修订记录$/## 7. 修订记录\n\n| [项目名] | [动词] |/' \
+            references/example-delivery.md > /tmp/d_bad.md
+          set +e
+          out=$(python scripts/check_delivery.py /tmp/d_bad.md)
+          code=$?
+          set -e
+          echo "$out"
+          [ "$code" -eq 2 ] || { echo "::error::残留占位符应返回 2，实际 $code"; exit 1; }
+          echo "$out" | grep -q "D3 模板占位符未替换" || { echo "::error::未报出残留占位符"; exit 1; }
+          # 少一节 → ERROR
+          sed 's/^## 4. 证据清单$/## 四. 证据清单/' references/example-delivery.md > /tmp/d_miss.md
+          set +e
+          out=$(python scripts/check_delivery.py /tmp/d_miss.md)
+          code=$?
+          set -e
+          [ "$code" -eq 2 ] || { echo "::error::缺节应返回 2，实际 $code"; exit 1; }
+          echo "$out" | grep -q "D1 缺少第 4 节" || { echo "::error::未报出缺节"; exit 1; }

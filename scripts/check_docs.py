@@ -51,8 +51,10 @@ BACKTICK_PATH_RE = re.compile(r"`((?:references|scripts|templates)/[A-Za-z0-9_./
 CHANGELOG_ENTRY_RE = "summary><b>v{}<"
 
 # 面向用户交付的机器检查脚本。check_docs.py 不在此列——它是本仓库的自检工具，
-# 用户的交付包里不需要记录它。
+# 用户的交付包里不需要记录它。顺序即交付时的执行顺序：结构最先（最便宜，
+# 结构都不对就没必要跑后面五项），然后机械、时间线、溯源、隐私、档案对账。
 DELIVERY_CHECKS = (
+    "check_delivery",
     "lint_resume",
     "check_timeline",
     "trace_numbers",

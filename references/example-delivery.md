@@ -215,13 +215,14 @@ N+1，最后用 EXPLAIN 确认索引生效——这套方法在真实业务里�
 
 | 检查 | 命令 | 结果 |
 |---|---|---|
+| 结构层 | `check_delivery.py 本文件` | ERROR 0 / WARN 0 |
 | 机械层 | `lint_resume.py 本文件 --facts facts.md --jd jd.txt` | ERROR 0 / WARN 0 / INFO 2（含 R6 覆盖 9/12） |
 | 时间线 | `check_timeline.py 本文件` | REVERSED 0 / OVERLAP 0 / GAP 0 |
 | 溯源层 | `trace_numbers.py 本文件 ../campus-bookstore` | 命中 10 / 未命中 0 |
 | 隐私层 | `scan_privacy.py 本文件 --allow "1[3-9]\d{9}"` | ERROR 0 / WARN 1（本人手机号，已放行）/ INFO 1 |
 | 档案对账 | `check_facts.py facts.md 本文件` | 未启用：本包只有单版本，跨版本对账无对象 |
 
-五项全部执行或已说明理由，无静默跳过。
+六项全部执行或已说明理由，无静默跳过。
 
 ### 6.2 语义审计（双视角逐条过）
 

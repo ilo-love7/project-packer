@@ -5,7 +5,7 @@
 **Turn what you have actually done into interview-proof project experience — push the wording as hard as the facts allow, never touch the facts themselves.**
 
 ![ci](https://github.com/ilo-love7/project-packer/actions/workflows/ci.yml/badge.svg)
-![version](https://img.shields.io/badge/version-2.10.0-blue)
+![version](https://img.shields.io/badge/version-2.11.0-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
 ![type](https://img.shields.io/badge/agent%20skill-SKILL.md-orange)
 
@@ -33,7 +33,7 @@ This is not a resume beautifier, and it is not a fabrication assistant. The core
 - **Carrier reframing** — prepares answers to the aggressive questions ("was this an internship?" / "why do you have no internship?") in advance, translating non-internship experience into evidence of self-direction.
 - **Fact ledger** — one `facts.md` as the single source of truth per user (numbers + convention + evidence pointer + both final tiers + defence score); a forced diff before every output so repeated packaging never drifts.
 - **Sparring mode** — the agent plays the interviewer and drills down layer by layer with three-dimensional feedback; statements that collapse get downgraded, and the questions get written back into the follow-up tree and question bank.
-- **Five executable checks, one semantic pass** — `lint_resume.py` (verbs / red flags / yellow words / dates / numbers / keywords), `check_timeline.py` (the whole timeline as one axis — reversals / overlaps / gaps), `trace_numbers.py` (every number back to a file:line in your workspace), `scan_privacy.py` (secrets and PII, masked on output), `check_facts.py` (one ledger against several resume versions — cross-version conflicts, unrecorded numbers, idle material), then the agent's semantic pass (follow-up tree / conventions / attribution). Nothing ships with an unresolved fail.
+- **Six executable checks, one semantic pass** — `check_delivery.py` (package structure — sections, order, leftover placeholders), `lint_resume.py` (verbs / red flags / yellow words / dates / numbers / keywords), `check_timeline.py` (the whole timeline as one axis — reversals / overlaps / gaps), `trace_numbers.py` (every number back to a file:line in your workspace), `scan_privacy.py` (secrets and PII, masked on output), `check_facts.py` (one ledger against several resume versions — cross-version conflicts, unrecorded numbers, idle material), then the agent's semantic pass (follow-up tree / conventions / attribution). Nothing ships with an unresolved fail.
 - **JD parsing** — paste the job description whole; `parse_jd.py` turns it into a grouped, frequency-sorted keyword list and prints the exact `--keywords` string the linter takes. High-frequency words are hard requirements, single mentions are bonuses, and that ordering is the priority order for the evidence map.
 - **Multi-project budgeting** — one page holds 12–20 lines of project experience, so "how many projects, how many bullets each, who goes first" is arithmetic rather than taste. A 3-axis score (job fit + defence score + distinctiveness) sorts every experience into L1 full / L2 compact / L3 one-liner / L4 interview-only; a project with a defence score of 0 can never exceed L2, and projects are ordered by relevance rather than recency. Cut material moves into the fact ledger, never into the bin.
 - **English and internship branches** — an English job description does not produce a translation, it produces a different writing system: past-tense verbs first, articles dropped, units kept, one spelling convention, 120 characters per line. Having an internship flips the discipline from "push the wording" to "be precise" — the evidence is stronger, but so is the verification: NDA boundaries, a clear statement of which part was yours, and the four questions every internship gets asked.
@@ -62,6 +62,7 @@ project-packer/
 │   ├── templates.md                # output templates (incl. substitute quantification, carrier scripts)
 │   ├── integrity-audit.md          # adversarial audit checklist (5 viewpoints, 22 items)
 │   ├── fact-file.md                # fact ledger: the single source of truth
+│   ├── example-facts.md            # a filled fact ledger: what a real one looks like after a year
 │   ├── drill-mode.md               # sparring mode: interviewer drill-down + write-back
 │   ├── example-battery.md          # golden example: a research reproduction with hard data
 │   ├── example-student-work.md     # contrast example: student work without hard numbers
@@ -81,9 +82,10 @@ project-packer/
 │   ├── check_timeline.py           # merged timeline: reversed ranges, overlaps, gaps
 │   ├── check_facts.py              # one ledger x several resume versions: conflicts / orphans / idle
 │   ├── scan_privacy.py             # secrets and PII scanner, masks what it finds
+│   ├── check_delivery.py           # delivery-package structure: sections, order, placeholders
 │   ├── check_docs.py               # documentation consistency (version / counts / cross-refs / links)
 │   └── _common.py                  # shared file walker used by the two scanners
-├── tests/                          # unittest suite for all seven scripts (zero dependency)
+├── tests/                          # unittest suite for every script (zero dependency)
 ├── evals.md                        # regression test cases (must run after any revision)
 └── .github/workflows/ci.yml        # tests + doc checks on every push
 ```
@@ -259,6 +261,30 @@ The merged timeline is the actual deliverable here — it is what "核对总时�
 
 Overlap is only a `WARN` when **both** sides claim to occupy full time (`全职` / `实习` / `在职`). Otherwise it is `INFO` and labelled as parallel experience. Reversed ranges are the only `ERROR`, because they are the only thing that is unambiguously wrong.
 
+### 6. Delivery structure — `check_delivery.py`
+
+Stage 5 makes two hard demands: *do not change the section order* and *replace every placeholder*. Both are mechanically checkable, and until this script existed nothing checked either. The gap was not theoretical — inserting `[日期] [改了什么] [为什么]` back into a finished delivery package passed `lint_resume`, `check_timeline` and `scan_privacy` with `ERROR 0 / WARN 0`. A structural defect does not look ugly; it ships internal instructions and unfilled placeholders to a recruiter.
+
+```bash
+python3 scripts/check_delivery.py 交付包.md
+python3 scripts/check_delivery.py 交付包.md --strict
+```
+
+| Check | What it means | Level |
+|---|---|---|
+| D1 | Sections 1-7 all present (8 is optional) | `ERROR` |
+| D2 | Numbers ascend from 1 with no duplicates, and section 1 is the resume | `ERROR` |
+| D3 | A placeholder **from the template** is still there | `ERROR` |
+| D3 | A self-made bracketed token like `[日期]` | `WARN` |
+| D4 | Section 6.1 does not record all six checks | `WARN` |
+| D5 | The "how to use this template" block is still in the file | `ERROR` |
+
+D3 is split for a reason worth knowing. Placeholders that come from the template (`[项目名]`, `[动词]`, `[YYYY.MM-YYYY.MM]`) need no guessing — the template lists them, so if one appears it was not replaced. Placeholders you invented can only be guessed at by shape, hence `WARN`. The cost is documented: a legitimate bracketed note like `[注：本机压测口径]` will be flagged as a warning; confirm it once and move on.
+
+D3 deliberately ignores markdown link text (`[text](url)`), list checkboxes (`- [ ]` / `- [x]`), and bare-digit brackets (`[1]` footnotes, `[3-9]` inside a regex). All three look like placeholders and none of them are.
+
+D5 exists because the template opens with a four-line "how to use this template" block aimed at the writer. Forget to delete it and the recruiter reads your internal workflow.
+
 ## Development
 
 ```bash
@@ -304,6 +330,27 @@ Three files exist purely so the first run does not start from a blank page:
 | [`templates/question-bank.template.md`](templates/question-bank.template.md) | Copy after your first real interview. One real question = one record, marked ✅ hit / 🟡 outside the tree / ❌ collapsed. |
 
 ## Changelog
+
+<details>
+<summary><b>v2.11.0</b> (2026-10-22) — someone finally looks at the package structure</summary>
+
+Stage 5 makes two hard demands — *do not change the section order*, *replace every placeholder* — and none of the six scripts looked at package structure. The gap was not hypothetical: inserting `[日期] [改了什么] [为什么]` back into a finished package passed `lint_resume`, `check_timeline` and `scan_privacy` with `ERROR 0 / WARN 0`. A structural defect does not look ugly; it ships internal instructions and unfilled placeholders to a recruiter.
+
+**`check_delivery.py`** covers five: D1 sections 1-7 present (8 optional), D2 ascending non-duplicated numbers with the resume first, D3 leftover placeholders, D4 whether 6.1 records every check, D5 whether the template's instruction block was deleted.
+
+The two-tier split in D3 is the design worth reading. Placeholders that come from the template need no guessing — the template lists them (`[项目名]`, `[动词]`, `[YYYY.MM-YYYY.MM]`), so one appearing means it was not replaced, and that is an `ERROR`. Placeholders you invented (`[日期]`) can only be guessed at by shape, so they are `WARN`. The cost is documented: a legitimate bracketed Chinese note gets flagged as a warning. Three lookalikes are deliberately ignored — markdown link text, list checkboxes (`- [ ]`), and bare-digit brackets (`[1]` footnotes, `[3-9]` inside a regex).
+
+D5 exists on its own because the template opens with a "how to use this template" block aimed at the writer. Forget to delete it and the recruiter reads your internal workflow.
+
+**`references/example-facts.md`** closes the other gap: the fact ledger had an empty template and a spec, but no filled example. This one is filled from two existing projects with their real numbers — defence scores of 2, 1 and 0 all appear, both packaging tiers are archived, and it carries the follow-up-tree hit rate and the boundary-card summary. It also demonstrates the three conventions most often mangled: 84% is **line** coverage not branch, 18/18 has **observations** in the denominator not batteries, and 3.4 万条 is seed data not users.
+
+The `example-battery.md` contradiction is fixed too: SKILL.md called it "the full flow (gold standard)" while the file marked itself "excerpt" twice and only covers stages 0-1, 3 and 4. Both now say **key-stage excerpt**, and the two missing stages point at `example-software.md` and `example-delivery.md`.
+
+**`tests/test_json_contract.py`** is the fourth piece: all seven scripts have `--json`, but nothing guaranteed the output was machine-readable. It holds three minimum contracts — stdout is a single valid JSON document, the top level is an object containing a collection field, and the exit code stays within 0/1/2. Field names will change; these three should not. A stray `print` added while debugging shows up here immediately.
+
+Tests 234 → 264 (25 for delivery structure, 5 for the JSON contract).
+
+</details>
 
 <details>
 <summary><b>v2.10.0</b> (2026-10-22) — a full sweep: three false positives out, two missing rows in</summary>
