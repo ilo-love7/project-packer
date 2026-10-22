@@ -12,13 +12,17 @@ check_docs.py — 文档一致性检查（离线、零依赖）
     python3 scripts/check_docs.py --json
 
 检查项：
-  C1 版本号：SKILL.md frontmatter 的 version 与两版 README 徽章一致
-  C2 阶段数：README 声明的阶段数与 SKILL.md 实际的「阶段 N」数量一致
-  C3 审计条目：README 声明的条数与 integrity-audit.md 实际编号条目一致
-  C4 编号完整性：审计清单编号从 1 连续、无重复、无跳号
-  C5 章节引用：所有「第 N 节「名称」」引用与 templates.md 实际标题匹配
-  C6 双语对齐：两版 README 的二级标题数量一致
-  C7 相对链接：所有 ./xxx 链接指向的文件真实存在
+  C1  版本号：SKILL.md frontmatter 的 version 与两版 README 徽章一致
+  C2  阶段数：README 声明的阶段数与 SKILL.md 实际的「阶段 N」数量一致
+  C3  审计条目：README 声明的条数与 integrity-audit.md 实际编号条目一致
+  C4  编号完整性：审计清单编号从 1 连续、无重复、无跳号
+  C5  章节引用：所有「第 N 节「名称」」引用与 templates.md 实际标题匹配
+  C6  双语对齐：两版 README 的二级标题数量一致
+  C7  相对链接：所有 ./xxx 链接指向的文件真实存在
+  C8  用例编号：evals.md 的分组编号从 1 连续、组别按字母顺序（缺文件则 SKIP）
+  C9  更新日志：SKILL.md 的 version 在两版 README 的 changelog 里有对应条目
+  C10 目录树完整：references/ 与 templates/ 下每个文件都出现在两版 README 里
+  C11 路径引用：SKILL.md 里反引号标注的 references/scripts/templates 路径真实存在
 
 退出码：0=全部通过  1=有 FAIL
 """
@@ -40,6 +44,10 @@ README_ITEMS_RE = re.compile(r"(\d+)\s*条|(\d+)\s+items")
 XREF_RE = re.compile(r"第 (\d+) 节「([^」]+)」")
 MD_LINK_RE = re.compile(r"\]\((\./[^)\s]+)\)")
 HREF_RE = re.compile(r'href="(\./[^"]+)"')
+EVAL_ITEM_RE = re.compile(r"^### ([A-Z])(\d+)\s", re.M)
+# SKILL.md 里用反引号标注的路径。不含 * 是为了放过 glob 写法（如 example-*.md）。
+BACKTICK_PATH_RE = re.compile(r"`((?:references|scripts|templates)/[A-Za-z0-9_./-]+)`")
+CHANGELOG_ENTRY_RE = "summary><b>v{}<"
 
 
 def fenced_blocks(text):
@@ -195,6 +203,66 @@ def check(root=None):
             add("FAIL", "C7", f"相对链接失效：{b}")
     else:
         add("PASS", "C7", "相对链接全部有效")
+
+    # C8 用例编号：evals.md 每个分组从 1 连续，组别按字母顺序
+    evals_path = root / "evals.md"
+    if not evals_path.exists():
+        add("SKIP", "C8", "没有 evals.md，跳过用例编号检查")
+    else:
+        pairs = [(ltr, int(n)) for ltr, n in EVAL_ITEM_RE.findall(read("evals.md", root))]
+        if not pairs:
+            add("SKIP", "C8", "evals.md 里没有「### A1 …」形式的用例编号")
+        else:
+            letters = list(dict.fromkeys(ltr for ltr, _ in pairs))
+            problems = []
+            if letters != sorted(letters):
+                problems.append(f"分组顺序异常 {letters}")
+            for ltr in letters:
+                nums = [n for x, n in pairs if x == ltr]
+                if nums != list(range(1, len(nums) + 1)):
+                    dup = sorted({n for n in nums if nums.count(n) > 1})
+                    detail = f"（重复 {dup}）" if dup else ""
+                    problems.append(f"{ltr} 组编号 {nums}{detail}")
+            if problems:
+                add("FAIL", "C8", f"evals.md 用例编号异常：{'；'.join(problems)}")
+            else:
+                add("PASS", "C8", f"evals.md 用例编号连续（{len(letters)} 组 / {len(pairs)} 条）")
+
+    # C9 更新日志：升了版本却没写日志，是纯 Markdown 项目最容易漏的一步
+    if skill_version:
+        entry = CHANGELOG_ENTRY_RE.format(skill_version)
+        for readme in ("README.md", "README.zh-CN.md"):
+            if entry in read(readme, root):
+                add("PASS", "C9", f"{readme} 更新日志含 v{skill_version}")
+            else:
+                add("FAIL", "C9", f"{readme} 更新日志缺少 v{skill_version} 条目")
+
+    # C10 目录树完整：新增 references/ 文件却忘了写进目录树，C7 查不出来
+    doc_files = []
+    for sub in ("references", "templates"):
+        d = root / sub
+        if d.is_dir():
+            doc_files += sorted(d.glob("*.md"))
+    if not doc_files:
+        add("SKIP", "C10", "没有 references/ 或 templates/ 目录，跳过目录树检查")
+    else:
+        for readme in ("README.md", "README.zh-CN.md"):
+            text = read(readme, root)
+            missing = [f.name for f in doc_files if f.name not in text]
+            if missing:
+                add("FAIL", "C10", f"{readme} 目录树漏了：{', '.join(missing)}")
+            else:
+                add("PASS", "C10", f"{readme} 目录树覆盖全部 {len(doc_files)} 个文档")
+
+    # C11 SKILL.md 里反引号标注的路径必须真实存在
+    dangling = [
+        p for p in sorted(set(BACKTICK_PATH_RE.findall(skill))) if not (root / p).exists()
+    ]
+    if dangling:
+        for p in dangling:
+            add("FAIL", "C11", f"SKILL.md 引用了不存在的路径：{p}")
+    else:
+        add("PASS", "C11", "SKILL.md 的路径引用全部存在")
 
     return issues
 

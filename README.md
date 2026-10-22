@@ -5,7 +5,7 @@
 **Turn what you have actually done into interview-proof project experience — push the wording as hard as the facts allow, never touch the facts themselves.**
 
 ![ci](https://github.com/ilo-love7/project-packer/actions/workflows/ci.yml/badge.svg)
-![version](https://img.shields.io/badge/version-2.6.0-blue)
+![version](https://img.shields.io/badge/version-2.7.0-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
 ![type](https://img.shields.io/badge/agent%20skill-SKILL.md-orange)
 
@@ -33,7 +33,8 @@ This is not a resume beautifier, and it is not a fabrication assistant. The core
 - **Carrier reframing** — prepares answers to the aggressive questions ("was this an internship?" / "why do you have no internship?") in advance, translating non-internship experience into evidence of self-direction.
 - **Fact ledger** — one `facts.md` as the single source of truth per user (numbers + convention + evidence pointer + both final tiers + defence score); a forced diff before every output so repeated packaging never drifts.
 - **Sparring mode** — the agent plays the interviewer and drills down layer by layer with three-dimensional feedback; statements that collapse get downgraded, and the questions get written back into the follow-up tree and question bank.
-- **Four-layer audit** — three executable checks plus one semantic layer: `lint_resume.py` (verbs / red flags / dates / numbers / keywords), `trace_numbers.py` (every number back to a file:line in your workspace), `scan_privacy.py` (secrets and PII, masked on output), then the agent's semantic pass (follow-up tree / conventions / attribution). Nothing ships with an unresolved fail.
+- **Five-layer audit** — four executable checks plus one semantic layer: `lint_resume.py` (verbs / red flags / dates / numbers / keywords), `trace_numbers.py` (every number back to a file:line in your workspace), `scan_privacy.py` (secrets and PII, masked on output), `check_facts.py` (one ledger against several resume versions — cross-version conflicts, unrecorded numbers, idle material), then the agent's semantic pass (follow-up tree / conventions / attribution). Nothing ships with an unresolved fail.
+- **JD parsing** — paste the job description whole; `parse_jd.py` turns it into a grouped, frequency-sorted keyword list and prints the exact `--keywords` string the linter takes. High-frequency words are hard requirements, single mentions are bonuses, and that ordering is the priority order for the evidence map.
 - **Multi-project budgeting** — one page holds 12–20 lines of project experience, so "how many projects, how many bullets each, who goes first" is arithmetic rather than taste. A 3-axis score (job fit + defence score + distinctiveness) sorts every experience into L1 full / L2 compact / L3 one-liner / L4 interview-only; a project with a defence score of 0 can never exceed L2, and projects are ordered by relevance rather than recency. Cut material moves into the fact ledger, never into the bin.
 - **Defence score** — each bullet gets 0–3 points (evidence strength + follow-up-tree coverage); anything below 2 is barred from the Intensified tier.
 - **ATS adaptation** — a plain-text version spec plus JD keyword coverage, with missing keywords sorted into three categories; no keyword stuffing, no hidden text.
@@ -64,6 +65,7 @@ project-packer/
 │   ├── example-battery.md          # golden example: a research reproduction with hard data
 │   ├── example-student-work.md     # contrast example: student work without hard numbers
 │   ├── example-software.md         # software example: self-measured metrics + three job-target variants
+│   ├── example-delivery.md         # a fully filled delivery package (all seven sections)
 │   └── multi-project.md            # fitting several projects onto one page: budget, tiers, scoring, ordering
 ├── templates/                      # copy-paste starting points
 │   ├── facts.template.md           # fact ledger skeleton
@@ -71,11 +73,13 @@ project-packer/
 │   └── delivery.template.md        # the full delivery package skeleton
 ├── scripts/
 │   ├── lint_resume.py              # mechanical audit (verbs / red flags / dates / numbers)
+│   ├── parse_jd.py                 # turns a raw job description into the keyword list
 │   ├── trace_numbers.py            # traces every number in a draft back to a real file
+│   ├── check_facts.py              # one ledger x several resume versions: conflicts / orphans / idle
 │   ├── scan_privacy.py             # secrets and PII scanner, masks what it finds
 │   ├── check_docs.py               # documentation consistency (version / counts / cross-refs / links)
 │   └── _common.py                  # shared file walker used by the two scanners
-├── tests/                          # unittest suite for all four scripts (zero dependency)
+├── tests/                          # unittest suite for all six scripts (zero dependency)
 ├── evals.md                        # regression test cases (must run after any revision)
 └── .github/workflows/ci.yml        # tests + doc checks on every push
 ```
@@ -96,7 +100,7 @@ project-packer/
 
 ## Offline checks
 
-Three checks run without the agent — pure standard library, no `pip install`. They are the executable form of the three claims this skill makes: *the wording is defensible*, *the numbers are real*, *nothing private leaked*.
+Four checks run without the agent — pure standard library, no `pip install`. They are the executable form of the four claims this skill makes: *the wording is defensible*, *the numbers are real*, *nothing private leaked*, *the versions agree with each other*.
 
 ### 1. Mechanical audit — `lint_resume.py`
 
@@ -107,6 +111,9 @@ python3 scripts/lint_resume.py resume.md
 # cross-check every number against the fact ledger, and score JD keyword coverage
 python3 scripts/lint_resume.py resume.md --facts facts.md --keywords "Python,SQL,A/B testing"
 
+# let the tool pull the keywords out of the job description itself
+python3 scripts/lint_resume.py resume.md --facts facts.md --jd jd.txt
+
 # machine-readable, for wiring into your own pipeline
 python3 scripts/lint_resume.py resume.md --facts facts.md --json
 ```
@@ -115,6 +122,7 @@ python3 scripts/lint_resume.py resume.md --facts facts.md --json
 |---|---|
 | `--facts facts.md` | Flags any significant number in the draft that never appears in the ledger |
 | `--keywords "a,b,c"` | Prints JD keyword coverage plus the missing list |
+| `--jd jd.txt` | Extracts keywords from the raw JD and merges them into `--keywords` |
 | `--max-width N` | Bullet length limit in display width (default 150 ≈ two lines; CJK counts as 2) |
 | `--min-number N` | Numbers below N without a decimal point or `%` are treated as incidental and skipped (default 10) |
 | `--strict` | Treat warnings as failures, for use in CI |
@@ -122,7 +130,18 @@ python3 scripts/lint_resume.py resume.md --facts facts.md --json
 
 Exit codes: `0` clean ｜ `1` warnings only ｜ `2` errors present.
 
+`parse_jd.py` also runs standalone when you want to see what it found and why:
+
+```bash
+python3 scripts/parse_jd.py jd.txt              # grouped report + a ready-made --keywords string
+python3 scripts/parse_jd.py jd.txt --keywords-only
+```
+
+It matches a built-in vocabulary of common role terms (hard skills / tools and platforms / soft skills), then adds anything else that looks technical — contains a digit, a `+`/`#`, is all caps, or is camelCase — behind a stoplist so `THE` and `AND` never become keywords. The honest limit: a Chinese term outside the vocabulary will not be found, which is what `--extra` is for. Nothing is invented to fill the gap.
+
 Note on the noise filter: a draft is full of incidental numbers ("spent 3 hours debugging"). Comparing every one of them against the ledger drowns the real warnings, so only numbers with a decimal point, a `%` sign, or a value at or above the threshold are checked one by one. The rest are counted and reported as a single informational line.
+
+Note on what R4 does *not* check: a delivery package's STAR sections are also `- ` list items, but they are spoken scripts, not two-line resume bullets. Lines ending in a full stop are treated as prose and skipped, with an informational line saying how many. The cost is explicit — an English bullet ending in a period escapes the length check, so end English bullets with a semicolon.
 
 ### 2. Number traceback — `trace_numbers.py`
 
@@ -164,21 +183,55 @@ Exit codes: `0` clean ｜ `1` warnings ｜ `2` errors.
 
 Running it against this repository itself will surface a few warnings from the scanner's own test fixtures and from the regex definitions in its source. That is expected — a rule describing `/home/<user>` naturally matches its own description. The invariant worth keeping is `ERROR = 0`, and there is a test asserting exactly that across every file in the repo.
 
+### 4. Ledger reconciliation — `check_facts.py`
+
+The rule "numbers are identical across every version" was, until now, a sentence in a document. `lint_resume.py --facts` compares one draft against one ledger; it cannot see that two resumes disagree with each other.
+
+```bash
+python3 scripts/check_facts.py facts.md 简历-后端.md 简历-测试.md
+python3 scripts/check_facts.py facts.md "简历-*.md"
+```
+
+```
+[CONFLICT] 「中位误差 #%，覆盖 # 人」第 1 个数字
+           简历-后端.md:L5  5.9
+           简历-测试.md:L5  6.4
+           → 同一指标跨版本数字不一致，比措辞弱致命得多，先对齐再交稿
+
+[ORPHAN] 简历-测试.md：2 个数字不在档案里
+           L7  40  「另做了 #% 的优化」
+           → 先入档（数字 + 口径 + 证据指针）再定稿，否则下次包装又会漂
+
+[IDLE] 档案里有 3 个数字没进任何版本（素材闲置）
+           61 / 7 / 20
+```
+
+Two confidence levels, and the split is the point:
+
+| Level | How it is detected | Exit |
+|---|---|---|
+| `CONFLICT` | The whole line, with every number replaced by `#`, is identical across versions but one value differs — a copy-paste followed by a quiet edit. Zero false positives. | 2 |
+| `SUSPECT` | The wording differs (an L1 full version and an L2 compact version naturally differ) but the six characters on each side of the number match, across different files. Can be a false positive, so it is a warning for a human to confirm. | 1 |
+
+What neither catches: the same metric reworded so thoroughly that even the surrounding words change. The tool reports what it can prove; guessing at the rest would train users to ignore it. `IDLE` is deliberately informational — L4 material is *supposed* to stay off the resume.
+
 ## Development
 
 ```bash
-python3 -m unittest discover -s tests -v   # unit tests for all four scripts
-python3 scripts/check_docs.py              # version badge / stage count / audit item count / cross-refs / links
+python3 -m unittest discover -s tests -v   # unit tests for all six scripts
+python3 scripts/check_docs.py              # version / stage count / audit items / cross-refs / links / eval numbering / changelog / tree / paths
 python3 scripts/lint_resume.py references/example-battery.md --strict
+python3 scripts/lint_resume.py references/example-delivery.md --strict
 ```
 
-`check_docs.py` exists because this project ships nothing but Markdown: writing "21 items" when the checklist actually has 22 produces no compiler error, it just quietly misleads. The checker turns that class of drift into a failing exit code. CI runs all three commands on Python 3.9 / 3.11 / 3.13.
+`check_docs.py` exists because this project ships nothing but Markdown: writing "21 items" when the checklist actually has 22 produces no compiler error, it just quietly misleads. The checker turns that class of drift into a failing exit code — eleven checks, including four added after they caught real mistakes here: an eval group that skipped a number, a version bumped without a changelog entry, a new `references/` file missing from the README directory tree, and a `references/…` path in `SKILL.md` pointing at a file that does not exist. CI runs all three commands on Python 3.9 / 3.11 / 3.13.
 
 ## Examples
 
 - [`references/example-battery.md`](references/example-battery.md) — reproducing the Nature Energy 2019 battery cycle-life paper → resume bullets, a 33.6%→5.9% debugging STAR, follow-up tree, honesty-boundary card.
 - [`references/example-student-work.md`](references/example-student-work.md) — a 174-person English check-in activity → substitute quantification, an incentive-failure conflict STAR, and the "why no internship" script.
 - [`references/example-software.md`](references/example-software.md) — a three-person course project backend → p95 480ms→90ms, coverage 61%→84%, CI 7m20s→2m10s; shows the same experience rewritten for a backend, a QA and a platform role, plus how to answer "is this all your own work?" on a team project.
+- [`references/example-delivery.md`](references/example-delivery.md) — the same experience as a **finished delivery package**: all seven sections filled, including the evidence table, the defence-score card, the audit report and the revision log. The resume block is four lines; the other six sections are why those four lines are allowed to exist.
 
 ## Choosing what to show
 
@@ -206,6 +259,23 @@ Three files exist purely so the first run does not start from a blank page:
 | [`templates/question-bank.template.md`](templates/question-bank.template.md) | Copy after your first real interview. One real question = one record, marked ✅ hit / 🟡 outside the tree / ❌ collapsed. |
 
 ## Changelog
+
+<details>
+<summary><b>v2.7.0</b> (2026-10-22) — the last four claims become executable</summary>
+
+The pitch of this project is "every promise is a check you can run". Counting honestly, three promises had checks and four did not: *the timeline is consistent*, *the ledger is the single source of truth*, *numbers are identical across versions*, and *diff before you output*. All four were enforced only by the agent remembering to enforce them.
+
+`check_facts.py` covers the last three at once. Point it at one ledger and any number of resume versions and it reports three things: `CONFLICT` (the same metric with different values), `ORPHAN` (a number in a resume that never made it into the ledger), and `IDLE` (ledger numbers no version uses — informational, because L4 material is supposed to stay off the resume). Conflict detection runs at two confidence levels, and the split is the interesting part. Whole-line skeleton identical but one value changed — a copy-paste followed by a quiet edit — is a `CONFLICT` with zero false positives and a failing exit code. Wording different but the six characters either side of the number matching, across files, is a `SUSPECT`: an L1 full version and an L2 compact version naturally differ, so it gets a warning and a human decision instead. What it cannot catch is a metric reworded so thoroughly that even the surrounding words change; the tool says so rather than guessing.
+
+`parse_jd.py` fixes the input side. `--keywords` wanted a hand-split comma string; the real action is pasting the job description whole. It now gets parsed into a grouped, frequency-sorted list — high frequency means hard requirement, a single mention means bonus, and that ordering is the priority order for the evidence map. Matching is a built-in vocabulary plus a heuristic for anything that looks technical (a digit, `+`/`#`, all caps, camelCase) behind a stoplist, so `THE` and `AND` never become keywords. A Chinese term outside the vocabulary is simply not found, which is what `--extra` is for — the tool does not invent one to fill the gap. `lint_resume.py --jd` wires the two together.
+
+`check_docs.py` gains four checks, and three of them were written because they had already caught real mistakes in this repo: an eval group that skipped a number (C8), a version bumped without a changelog entry (C9), a new `references/` file missing from the README directory tree (C10 — it caught `example-delivery.md` within a minute of being written), and a `references/…` path in `SKILL.md` pointing at nothing (C11, which the existing link check could not see because it only follows Markdown links, not backticked paths).
+
+`references/example-delivery.md` fills the last content gap: a delivery package with all seven sections actually filled. The template was a skeleton and the three examples were fragments, so "what does the finished thing look like" had no answer.
+
+One lint fix came out of writing it. R4 flagged the STAR sections of the delivery package as overlong bullets — they are `- ` list items, but they are spoken scripts, not two-line resume entries, and every user following the template would have received four false warnings. Lines ending in a full stop are now treated as prose, counted in an informational line. The cost is stated plainly in the docs: an English bullet ending in a period escapes the length check, so English bullets should end with a semicolon.
+
+</details>
 
 <details>
 <summary><b>v2.6.0</b> (2026-10-22) — what to do when you have more projects than page</summary>

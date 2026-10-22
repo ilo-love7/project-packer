@@ -44,6 +44,7 @@ jobs:
           python scripts/lint_resume.py references/example-battery.md --strict
           python scripts/lint_resume.py references/example-student-work.md --strict
           python scripts/lint_resume.py references/example-software.md --strict
+          python scripts/lint_resume.py references/example-delivery.md --strict
 
       - name: Check that lint actually catches a broken resume
         run: |
@@ -127,3 +128,44 @@ jobs:
         run: |
           printf '复现论文管线，官方划分中位误差 5.9%%。\n' > /tmp/clean.md
           python scripts/scan_privacy.py /tmp/clean.md
+
+      - name: check_facts catches a cross-version conflict
+        run: |
+          mkdir -p /tmp/v
+          cat > /tmp/v/facts.md <<'EOF'
+          | 数字 | 口径 | 证据指针 | 取证方式 | 防守分 |
+          |---|---|---|---|---|
+          | 5.9% | 中位误差 | results/summary.csv | 读第 4 列 | 3 |
+          | 174 | 打卡人数 | signin.csv | 数行数 | 2 |
+          EOF
+          printf -- '- 中位误差 5.9%%，覆盖 174 人；\n' > /tmp/v/a.md
+          printf -- '- 中位误差 6.4%%，覆盖 174 人；\n' > /tmp/v/b.md
+          set +e
+          out=$(python scripts/check_facts.py /tmp/v/facts.md /tmp/v/a.md /tmp/v/b.md)
+          code=$?
+          set -e
+          echo "$out"
+          [ "$code" -eq 2 ] || { echo "::error::跨版本数字冲突应返回 2，实际 $code"; exit 1; }
+          echo "$out" | grep -q "\[CONFLICT\]" || { echo "::error::未报出 CONFLICT"; exit 1; }
+          echo "$out" | grep -q "6.4" || { echo "::error::未列出冲突值"; exit 1; }
+
+      - name: check_facts exits zero when versions agree
+        run: |
+          cp /tmp/v/a.md /tmp/v/c.md
+          python scripts/check_facts.py /tmp/v/facts.md /tmp/v/a.md /tmp/v/c.md
+
+      - name: parse_jd extracts keywords and never invents them
+        run: |
+          printf '要求熟悉 Python 与 SQL，具备沟通协调能力。\n' > /tmp/jd.txt
+          set +e
+          out=$(python scripts/parse_jd.py /tmp/jd.txt --keywords-only)
+          code=$?
+          set -e
+          echo "$out"
+          [ "$code" -eq 0 ] || { echo "::error::抽词应返回 0，实际 $code"; exit 1; }
+          echo "$out" | grep -q "Python" || { echo "::error::未抽出 Python"; exit 1; }
+          echo "$out" | grep -q "沟通协调" || { echo "::error::未抽出中文软技能词"; exit 1; }
+          if echo "$out" | grep -qi "Kubernetes"; then
+            echo "::error::抽出了 JD 里没有的词"
+            exit 1
+          fi

@@ -66,6 +66,8 @@ README_ZH_TMPL = """<div align="center">
 
 ```
 ├── SKILL.md                 # {stages} 阶段工作流
+├── references/
+│   ├── templates.md
 │   └── integrity-audit.md   # 检查单（5 视角 {items} 条）
 ```
 
@@ -73,6 +75,15 @@ README_ZH_TMPL = """<div align="center">
 ## 乙
 
 见 [模板](references/templates.md)。
+"""
+
+CHANGELOG_TMPL = """
+<details>
+<summary><b>v{version}</b> (2026-01-01)</summary>
+
+notes
+
+</details>
 """
 
 TEMPLATES = """# 输出模板
@@ -106,10 +117,13 @@ def build(tmp, *, version="2.2.2", badge="2.2.2", stages=3, items=2,
     body = readme.read_text(encoding="utf-8")
     head = body.split("## A")[0]
     extra = "\n".join(f"## 节 {i}" for i in range(h2_count))
-    readme.write_text(head + extra + f"\n\n见 [{link}]({link})。\n", encoding="utf-8")
+    changelog = CHANGELOG_TMPL.format(version=version)
+    readme.write_text(
+        head + extra + f"\n\n见 [{link}]({link})。\n" + changelog, encoding="utf-8"
+    )
     zh = tmp / "README.zh-CN.md"
     zb = zh.read_text(encoding="utf-8").split("## 甲")[0]
-    zh.write_text(zb + extra.replace("节", "節") + "\n", encoding="utf-8")
+    zh.write_text(zb + extra.replace("节", "節") + "\n" + changelog, encoding="utf-8")
     return tmp
 
 
@@ -218,6 +232,115 @@ class TestC7Links(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             issues = docs.check(build(d, link="./nope.md"))
             self.assertTrue(fails(issues, "C7"))
+
+
+class TestC8EvalNumbering(unittest.TestCase):
+    def _with_evals(self, d, body):
+        tmp = build(d)
+        (tmp / "evals.md").write_text(body, encoding="utf-8")
+        return tmp
+
+    def test_gap_in_group_is_caught(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = self._with_evals(d, "### A1 甲\n### A2 乙\n### A4 丁\n")
+            self.assertTrue(fails(docs.check(tmp), "C8"))
+
+    def test_duplicate_number_is_caught(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = self._with_evals(d, "### A1 甲\n### A1 乙\n")
+            self.assertTrue(fails(docs.check(tmp), "C8"))
+
+    def test_groups_must_start_at_one(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = self._with_evals(d, "### A2 甲\n### A3 乙\n")
+            self.assertTrue(fails(docs.check(tmp), "C8"))
+
+    def test_out_of_order_groups_is_caught(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = self._with_evals(d, "### B1 甲\n### A1 乙\n")
+            self.assertTrue(fails(docs.check(tmp), "C8"))
+
+    def test_well_formed_evals_pass(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = self._with_evals(d, "### A1 甲\n### A2 乙\n### B1 丙\n")
+            self.assertEqual(fails(docs.check(tmp), "C8"), [])
+
+    def test_missing_evals_is_skipped_not_failed(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = build(d)  # 没有 evals.md
+            self.assertEqual(fails(docs.check(tmp), "C8"), [])
+
+
+class TestC9Changelog(unittest.TestCase):
+    def test_missing_changelog_entry_is_caught(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = build(d)
+            readme = tmp / "README.md"
+            readme.write_text(
+                readme.read_text(encoding="utf-8").replace("<b>v2.2.2</b>", "<b>v2.2.1</b>"),
+                encoding="utf-8",
+            )
+            self.assertTrue(fails(docs.check(tmp), "C9"))
+
+    def test_zh_changelog_is_checked_too(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = build(d)
+            zh = tmp / "README.zh-CN.md"
+            zh.write_text(
+                zh.read_text(encoding="utf-8").replace("<b>v2.2.2</b>", "<b>v2.0.0</b>"),
+                encoding="utf-8",
+            )
+            self.assertTrue(fails(docs.check(tmp), "C9"))
+
+
+class TestC10Tree(unittest.TestCase):
+    def test_file_missing_from_tree_is_caught(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = build(d)
+            (tmp / "references" / "forgotten.md").write_text("# 新文档\n", encoding="utf-8")
+            msgs = fails(docs.check(tmp), "C10")
+            self.assertTrue(msgs)
+            self.assertIn("forgotten.md", " ".join(msgs))
+
+    def test_templates_dir_is_covered(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = build(d)
+            (tmp / "templates").mkdir()
+            (tmp / "templates" / "x.template.md").write_text("# x\n", encoding="utf-8")
+            self.assertTrue(fails(docs.check(tmp), "C10"))
+
+
+class TestC11BacktickPaths(unittest.TestCase):
+    def test_dangling_path_is_caught(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = build(d)
+            skill = tmp / "SKILL.md"
+            skill.write_text(
+                skill.read_text(encoding="utf-8") + "\n见 `references/ghost.md`。\n",
+                encoding="utf-8",
+            )
+            self.assertTrue(fails(docs.check(tmp), "C11"))
+
+    def test_existing_path_passes(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = build(d)
+            skill = tmp / "SKILL.md"
+            skill.write_text(
+                skill.read_text(encoding="utf-8") + "\n见 `references/templates.md`。\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(fails(docs.check(tmp), "C11"), [])
+
+    def test_glob_pattern_is_not_checked(self):
+        # `example-*.md` 这类写法不是具体文件，不该报错
+        with tempfile.TemporaryDirectory() as d:
+            tmp = build(d)
+            skill = tmp / "SKILL.md"
+            skill.write_text(
+                skill.read_text(encoding="utf-8") + "\n见 `references/*.md`。\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(fails(docs.check(tmp), "C11"), [])
 
 
 class TestRealRepo(unittest.TestCase):

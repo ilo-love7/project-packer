@@ -198,6 +198,28 @@ class TestR4BulletWidth(unittest.TestCase):
         )
 
 
+class TestR4ProseExemption(unittest.TestCase):
+    """交付包里的 STAR 段落也是 "- " 开头的列表项，但它们是口播稿不是简历条目。"""
+
+    def test_long_sentence_ending_with_period_is_not_flagged(self):
+        line = "- 【S 情境】" + "这是一段要念出来的口播稿，" * 10 + "讲完就结束。"
+        issues = lint.check(line)
+        self.assertFalse(any(m.startswith("R4") for m in levels(issues, "WARN")))
+        self.assertTrue(any(m.startswith("R4 跳过") for m in levels(issues, "INFO")))
+
+    def test_long_bullet_ending_with_semicolon_is_still_flagged(self):
+        line = "- " + "很长的描述" * 40 + "；"
+        self.assertTrue(any(m.startswith("R4") for m in levels(lint.check(line), "WARN")))
+
+    def test_english_sentence_in_italics_is_not_flagged(self):
+        line = "- *" + "I built the backend of a course project and measured it. " * 6 + "*"
+        self.assertFalse(any(m.startswith("R4") for m in levels(lint.check(line), "WARN")))
+
+    def test_short_prose_does_not_produce_info_noise(self):
+        issues = lint.check("- 简短的一句。")
+        self.assertFalse(any(m.startswith("R4 跳过") for m in levels(issues, "INFO")))
+
+
 class TestR5FactsComparison(unittest.TestCase):
     def test_number_missing_from_facts_warns(self):
         issues = lint.check("- 误差 5.9%", facts_text="| 5.9 | 中位误差 |")

@@ -5,7 +5,7 @@
 **把真实做过的事包装成面试可防守的高强度项目经历——措辞可以拉满，事实一个不能动。**
 
 ![ci](https://github.com/ilo-love7/project-packer/actions/workflows/ci.yml/badge.svg)
-![version](https://img.shields.io/badge/version-2.6.0-blue)
+![version](https://img.shields.io/badge/version-2.7.0-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
 ![type](https://img.shields.io/badge/agent%20skill-SKILL.md-orange)
 
@@ -33,7 +33,8 @@
 - **载体重定位**：提前备好"这段是实习吗 / 为什么你没有实习经历"的进攻性回答，把非实习载体翻译成自驱力证据
 - **事实档案**：每个用户一份 facts.md 唯一事实源（数字+口径+证据指针+两档定稿+防守分），输出前强制 diff，多次包装不漂移
 - **陪练模式**：agent 扮演面试官逐层追问，三维反馈，答崩的表述降档、问题回写追问树与真题库
-- **四层审计**：三层可执行检查 + 一层语义审计——`lint_resume.py`（动词/红灯词/日期/数字/关键词）、`trace_numbers.py`（每个数字回溯到工作区的 文件:行号）、`scan_privacy.py`（密钥与隐私，输出自带打码），最后由 agent 做语义层（追问树/口径/归属）。存在未处理的 fail 不得交稿。
+- **五层审计**：四层可执行检查 + 一层语义审计——`lint_resume.py`（动词/红灯词/日期/数字/关键词）、`trace_numbers.py`（每个数字回溯到工作区的 文件:行号）、`scan_privacy.py`（密钥与隐私，输出自带打码）、`check_facts.py`（一份档案 × 多份简历：跨版本冲突、未入档数字、闲置素材），最后由 agent 做语义层（追问树/口径/归属）。存在未处理的 fail 不得交稿。
+- **JD 解析**：把 JD 整段粘进来，`parse_jd.py` 拆成分组、按频次排序的关键词表，并直接打印 `--keywords` 参数。高频词是硬要求、单次提及是加分项，这个顺序就是证据映射表的优先级。
 - **多项目取舍**：一页简历的项目经历只有 12-20 行，"写几个、每个几条、谁排第一"是算术问题不是审美问题。三维打分（岗位匹配 + 防守分 + 区分度）把每段经历落进 L1 完整 / L2 精简 / L3 一行 / L4 只进面试；**防守分 = 0 的经历最高只能到 L2**，项目按相关度而非时间倒序排。被砍的素材进档案，不进垃圾桶。
 - **防守分评分卡**：每条 bullet 0~3 分（证据强度 + 追问树覆盖），<2 分禁入强化档
 - **ATS 适配**：纯文本版规范 + JD 关键词覆盖率，缺词三分类，不堆砌不隐写
@@ -64,6 +65,7 @@ project-packer/
 │   ├── example-battery.md          # 黄金示例：有硬数据的科研复现项目
 │   ├── example-student-work.md     # 对照示例：无硬数字的学生工作
 │   ├── example-software.md         # 软件工程示例：自测指标 + 三种岗位换弹头
+│   ├── example-delivery.md         # 完整交付包示例：七节全部填满
 │   └── multi-project.md            # 多项目压一页：版面预算、压缩阶梯、打分表、排序
 ├── templates/                      # 直接复制就能用的起稿模板
 │   ├── facts.template.md           # 事实档案骨架
@@ -71,11 +73,13 @@ project-packer/
 │   └── delivery.template.md        # 完整交付包骨架
 ├── scripts/
 │   ├── lint_resume.py              # 机械层审计（动词/红灯词/日期/数字）
+│   ├── parse_jd.py                 # 把 JD 原文拆成关键词表
 │   ├── trace_numbers.py            # 把交付稿里每个数字回溯到工作区里的真实出处
+│   ├── check_facts.py              # 一份档案 × 多份简历：冲突 / 未入档 / 闲置
 │   ├── scan_privacy.py             # 密钥与隐私扫描，命中内容自动打码
 │   ├── check_docs.py               # 文档一致性（版本号/条目数/章节引用/相对链接）
 │   └── _common.py                  # 两个扫描器共用的文件遍历
-├── tests/                          # 四个脚本的单元测试（零依赖）
+├── tests/                          # 六个脚本的单元测试（零依赖）
 ├── evals.md                        # 回归测试用例（改版后必跑）
 └── .github/workflows/ci.yml        # 每次推送跑测试 + 文档检查
 ```
@@ -96,7 +100,7 @@ project-packer/
 
 ## 离线检查
 
-三个检查都不需要 agent，纯标准库，不用 `pip install`。它们分别把三条承诺变成可执行的东西：**措辞防守得住**、**数字是真的**、**没漏隐私**。
+四个检查都不需要 agent，纯标准库，不用 `pip install`。它们分别把四条承诺变成可执行的东西：**措辞防守得住**、**数字是真的**、**没漏隐私**、**多个版本之间对得上**。
 
 ### 1. 机械层审计 —— `lint_resume.py`
 
@@ -107,6 +111,9 @@ python3 scripts/lint_resume.py resume.md
 # 每个数字与事实档案逐一对账 + JD 关键词覆盖率
 python3 scripts/lint_resume.py resume.md --facts facts.md --keywords "Python,SQL,A/B 测试"
 
+# 让工具自己去 JD 原文里抽关键词
+python3 scripts/lint_resume.py resume.md --facts facts.md --jd jd.txt
+
 # 机器可读，方便接进自己的流程
 python3 scripts/lint_resume.py resume.md --facts facts.md --json
 ```
@@ -115,6 +122,7 @@ python3 scripts/lint_resume.py resume.md --facts facts.md --json
 |---|---|
 | `--facts facts.md` | 交付稿里出现但档案里没有的显著数字，逐个报警 |
 | `--keywords "a,b,c"` | 输出 JD 关键词覆盖率与缺失清单 |
+| `--jd jd.txt` | 从 JD 原文抽词并并入 `--keywords` |
 | `--max-width N` | bullet 长度上限（按显示宽度算，默认 150 ≈ 2 行；中文按 2 计） |
 | `--min-number N` | 小于 N 且无小数点、无百分号的数字视为顺带数字，跳过比对（默认 10） |
 | `--strict` | 把警告也算失败，适合放进 CI |
@@ -122,7 +130,18 @@ python3 scripts/lint_resume.py resume.md --facts facts.md --json
 
 退出码：`0` 干净 ｜ `1` 仅有警告 ｜ `2` 存在错误。
 
+`parse_jd.py` 也可以单独跑，用来确认它到底抽了什么、为什么抽：
+
+```bash
+python3 scripts/parse_jd.py jd.txt              # 分组报告 + 现成的 --keywords 串
+python3 scripts/parse_jd.py jd.txt --keywords-only
+```
+
+匹配方式是内置词表（硬技能 / 工具与平台 / 软技能）加一条启发式——含数字、含 `+`/`#`、全大写、驼峰，都算技术词，前面挡一张停用词表，所以 `THE`、`AND` 不会变成关键词。边界说清楚：词表之外的中文术语抽不出来，用 `--extra` 补，**工具不会为了填满而编一个词**。
+
 关于降噪：简历里到处是顺带数字（"排查了 3 小时"），逐个对账会把真正的告警淹掉。所以只有「带小数点 / 带百分号 / 数值达到阈值」的数字才逐一对账，其余只统计成一行提示。
+
+关于 R4 不查什么：交付包第 3 节的 STAR 段落也是 `- ` 开头的列表项，但那是要念出来的口播稿，不是要排进两行的简历条目。以句号结尾的行按叙述文字跳过，并单独计一行提示。代价写在明处：英文条目若以句号结尾就不会被长度检查，所以英文条目请以分号结尾。
 
 ### 2. 数字溯源 —— `trace_numbers.py`
 
@@ -164,21 +183,55 @@ python3 scripts/scan_privacy.py delivery.md --allow "138\d{8}"   # 放行自己�
 
 拿它扫这个仓库自身，会报出几条来自测试样本和源码里正则定义的警告。这是预期行为——描述 `/home/<用户名>` 的规则自然会命中它自己的描述。真正要守的不变量是 `ERROR = 0`，仓库里有一条测试就断言了这件事（覆盖全部文件）。
 
+### 4. 档案对账 —— `check_facts.py`
+
+"数字在所有版本里完全一致"这条铁律，在此之前只是文档里的一句话。`lint_resume.py --facts` 是拿一份稿对一份档案，看不见两份简历互相打架。
+
+```bash
+python3 scripts/check_facts.py facts.md 简历-后端.md 简历-测试.md
+python3 scripts/check_facts.py facts.md "简历-*.md"
+```
+
+```
+[CONFLICT] 「中位误差 #%，覆盖 # 人」第 1 个数字
+           简历-后端.md:L5  5.9
+           简历-测试.md:L5  6.4
+           → 同一指标跨版本数字不一致，比措辞弱致命得多，先对齐再交稿
+
+[ORPHAN] 简历-测试.md：2 个数字不在档案里
+           L7  40  「另做了 #% 的优化」
+           → 先入档（数字 + 口径 + 证据指针）再定稿，否则下次包装又会漂
+
+[IDLE] 档案里有 3 个数字没进任何版本（素材闲置）
+           61 / 7 / 20
+```
+
+两级置信度，分界才是重点：
+
+| 级别 | 怎么判 | 退出码 |
+|---|---|---|
+| `CONFLICT` | 整行所有数字换成 `#` 后完全相同，但其中一个值不一样——复制粘贴后顺手改了一个数。零误报 | 2 |
+| `SUSPECT` | 措辞不同（L1 完整版和 L2 精简版本来就不一样），但数字前后各 6 个字符相同，且跨文件。可能误报，所以只报警告交人确认 | 1 |
+
+两者都覆盖不到的情况：同一指标换了说法、连周围用词都换了。工具只报它确定的部分——把猜出来的当错误报，用户很快就会把它关掉。`IDLE` 刻意只做提示：L4 素材按设计就不该出现在简历里。
+
 ## 开发
 
 ```bash
-python3 -m unittest discover -s tests -v   # 四个脚本的单元测试
-python3 scripts/check_docs.py              # 版本徽章 / 阶段数 / 审计条数 / 章节引用 / 相对链接
+python3 -m unittest discover -s tests -v   # 六个脚本的单元测试
+python3 scripts/check_docs.py              # 版本 / 阶段数 / 审计条数 / 章节引用 / 链接 / 用例编号 / 更新日志 / 目录树 / 路径引用
 python3 scripts/lint_resume.py references/example-battery.md --strict
+python3 scripts/lint_resume.py references/example-delivery.md --strict
 ```
 
-`check_docs.py` 的存在理由：这个项目发布的东西全是 Markdown，写错一个数字（清单实际 22 条却写"21 条"）不会有编译错误，只会悄悄误导用户和 agent 自己。检查器把这类漂移变成会失败的退出码。CI 在 Python 3.9 / 3.11 / 3.13 上跑这三条命令。
+`check_docs.py` 的存在理由：这个项目发布的东西全是 Markdown，写错一个数字（清单实际 22 条却写"21 条"）不会有编译错误，只会悄悄误导用户和 agent 自己。检查器把这类漂移变成会失败的退出码——现在共十一项，其中四项是因为它真的抓到了这个仓库自己的错：用例分组跳号、升了版本没写更新日志、新增的 `references/` 文件忘了进 README 目录树、`SKILL.md` 里写了一个不存在的 `references/…` 路径。CI 在 Python 3.9 / 3.11 / 3.13 上跑这三条命令。
 
 ## 示例
 
 - [example-battery.md](references/example-battery.md)：复现 Nature Energy 2019 锂电池寿命预测项目 → 简历条目、33.6%→5.9% 排障 STAR、追问树、诚实边界卡
 - [example-student-work.md](references/example-student-work.md)：174 人英语打卡活动 → 替代量化、激励失效冲突 STAR、"为什么没有实习经历"话术
 - [example-software.md](references/example-software.md)：三人小组课程项目后端 → p95 480ms→90ms、覆盖率 61%→84%、CI 7分20秒→2分10秒；展示同一段经历按研发/测试/工程三种岗换弹头的写法，以及小组项目里"这是你自己做的吗"的标准答法
+- [example-delivery.md](references/example-delivery.md)：同一段经历写成**一份填满的完整交付包**——七节全填，含证据清单、防守分评分卡、审计报告、修订记录。简历段只有四行，剩下六节是"那四行为什么敢这么写"的答案
 
 ## 取舍：一页放不下时
 
@@ -206,6 +259,23 @@ python3 scripts/lint_resume.py references/example-battery.md --strict
 | [templates/question-bank.template.md](templates/question-bank.template.md) | 面完第一场就复制。一条真实问题 = 一条记录，标 ✅ 命中 / 🟡 树外答上 / ❌ 答崩 |
 
 ## 更新日志
+
+<details>
+<summary><b>v2.7.0</b>（2026-10-22）最后四条承诺也变成可执行检查</summary>
+
+这个项目的卖点是"每条承诺都是一个能跑的检查"。老实数一遍：三条有检查，四条没有——**时间线不矛盾**、**档案是唯一事实源**、**多版本数字一致**、**输出前 diff**。这四条在此之前全靠 agent 记得去做。
+
+`check_facts.py` 一次补上后三条。给它一份档案加任意多份简历，它报三类：`CONFLICT`（同一指标数字不同）、`ORPHAN`（简历里有、档案里没有，该入档）、`IDLE`（档案里有、任何版本都没用，只做提示——L4 素材本来就该留在简历外）。冲突检测分两级，分界才是重点：整行骨架相同、只有一个值变了（复制粘贴后顺手改了一个数）判 `CONFLICT`，零误报、退出码 2；措辞不同但数字前后各 6 个字符相同且跨文件判 `SUSPECT`——L1 完整版和 L2 精简版本措辞本来就不一样，所以只报警告交人确认。它查不出的是同一指标连周围用词都换掉的情况，工具把这条边界写在文档里，而不是猜出来当错误报。
+
+`parse_jd.py` 补的是输入侧。`--keywords` 要用户自己拆逗号串，可真实动作是把 JD 整段粘进来。现在能拆成分组、按频次排序的词表——高频是硬要求、单次提及是加分项，这个顺序就是证据映射表的优先级。匹配靠内置词表加一条启发式（含数字 / 含 `+`、`#` / 全大写 / 驼峰），前面挡一张停用词表，所以 `THE`、`AND` 不会变成关键词。词表之外的中文术语抽不出来，用 `--extra` 补，**工具不会编一个词来填满**。`lint_resume.py --jd` 把两者接起来。
+
+`check_docs.py` 加了四项检查，其中三项是因为它已经抓到了这个仓库自己的错：用例分组跳号（C8）、升了版本没写更新日志（C9）、新增的 `references/` 文件忘了进 README 目录树（C10——它在上线一分钟后就抓到了 `example-delivery.md`）、`SKILL.md` 里写了一个不存在的 `references/…` 路径（C11，原来的链接检查看不到，因为它只跟 Markdown 链接，不跟反引号里的路径）。
+
+`references/example-delivery.md` 补的是最后一块内容缺口：一份七节全部填满的交付包。模板是骨架、三个 example 是片段，"最后交到手上到底长什么样"此前没有答案。
+
+写这份示例时顺手修了一条 lint 误报。R4 把交付包第 3 节的 STAR 段落当成超长 bullet——它们确实是 `- ` 开头的列表项，但那是口播稿，不是两行的简历条目，每个照模板做的人都会收到四条假警告。现在以句号结尾的行按叙述文字跳过，并单独计一行提示。代价写在文档里：英文条目若以句号结尾就逃过长度检查，所以英文条目请以分号结尾。
+
+</details>
 
 <details>
 <summary><b>v2.6.0</b>（2026-10-22）多项目压一页简历的取舍</summary>

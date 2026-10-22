@@ -8,6 +8,7 @@ lint_resume.py — project-packer 机械层审计（离线、零依赖、可复�
     python3 lint_resume.py resume.md --facts facts.md
     python3 lint_resume.py resume.md --keywords "Python,A/B测试,SQL"
     python3 lint_resume.py resume.md --facts facts.md --keywords "Python,SQL"
+    python3 lint_resume.py resume.md --jd jd.txt        # 从 JD 原文自动抽词
     python3 lint_resume.py resume.md --json          # 机器可读输出
     python3 lint_resume.py resume.md --strict        # WARN 也返回退出码 2
 
@@ -17,11 +18,18 @@ lint_resume.py — project-packer 机械层审计（离线、零依赖、可复�
   R3 日期格式混用（YYYY.MM / YYYY-MM / YYYY年M月）               → WARN
   R4 bullet 过长（显示宽度 > 阈值，约超 2 行）                    → WARN
   R5 数字与事实档案比对（给了 --facts 时）：简历数字未见于档案      → WARN
-  R6 关键词覆盖（给了 --keywords 时）：输出覆盖率与缺失清单        → INFO
+  R6 关键词覆盖（给了 --keywords 或 --jd 时）：输出覆盖率与缺失清单  → INFO
 
 关于 R4 的宽度：用「显示宽度」而非字符数。一个中文字符占 2 个西文宽度，
 所以中文 75 字和英文 150 字符在简历上都约等于 2 行。默认阈值 150，
 可用 --max-width 调整。
+
+关于 R4 的适用范围：只查「简历条目」，不查叙述文字。交付包里的 STAR 段落
+也是以 "- " 开头的列表项，但它们是要念出来的口播稿，不是要排进两行的条目。
+判定依据是句末标点——简历条目按规范以「；」或不分号结尾，以「。」「.」结尾的
+是完整句子，属于叙述。被跳过的行会单独计一行 INFO，不做静默放过。
+代价要说清楚：英文简历条目若以句号结尾，R4 不会检查它。英文条目请按模板规范
+以分号结尾，这样检查才生效。
 
 关于 R5 的信噪比：简历里大量数字是顺带的（"排查了 3 小时"），逐一比对
 事实档案会淹没有效告警。因此只有「带小数点 / 带百分号 / 数值 ≥ 阈值」
@@ -38,6 +46,9 @@ import re
 import sys
 import unicodedata
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from parse_jd import extract as extract_jd_keywords, keyword_list as jd_keyword_string  # noqa: E402
 
 VERB_BLACKLIST = ["参与", "协助", "了解", "熟悉", "负责", "接触", "学习到了"]
 RED_WORDS = {
@@ -98,6 +109,15 @@ def display_width(text):
     return sum(2 if unicodedata.east_asian_width(ch) in ("W", "F") else 1 for ch in text)
 
 
+def _looks_like_prose(body):
+    """以句末标点收尾的 bullet 是叙述文字，不是简历条目。
+
+    先剥掉行尾的 Markdown 强调符（`*` `_` 反引号）再判，
+    否则 `- 英文版：*…to 2m10s.*` 会因为没有以 `.` 结尾而漏判。
+    """
+    return body.rstrip("*_` \t").endswith(("。", "！", "？", "!", "?", "."))
+
+
 def iter_bullets(lines):
     for no, raw in enumerate(lines, 1):
         m = BULLET_RE.match(raw)
@@ -136,42 +156,48 @@ def extract_numbers(text):
     return found
 
 
-def iter_significant_tokens(text, min_number=10):
-    """按出现顺序产出「值得逐一对账」的数字：(token, start, end)。
+def is_significant_token(line, match, min_number=10):
+    """判断某个数字匹配是否「值得逐一对账」。
 
     显著判定（任一成立）：带小数点 / 紧跟百分号 / 数值 >= min_number。
     这条规则是为了压掉「排查了 3 小时」这类顺带数字的噪音。
+
+    抽成独立函数是为了让 check_facts.py 复用同一套判定——如果两个工具各写
+    一份，迟早会在同一份稿子上给出不同的显著数字集合，而用户只会觉得工具
+    不可靠。lint 与档案对账必须对"哪些数字算数"有且只有一个答案。
+    """
+    tok = match.group(0)
+    val = float(tok)
+    if val.is_integer() and int(val) in YEAR_RANGE:
+        return False
+    has_decimal = "." in tok
+    is_percent = match.end() < len(line) and line[match.end()] in PERCENT_CHARS
+    return has_decimal or is_percent or val >= min_number
+
+
+def iter_significant_tokens(text, min_number=10):
+    """按出现顺序产出「值得逐一对账」的数字：(token, start, end)。
+
     start/end 是在原文中的下标，调用方可以据此截取上下文。
     """
     masked = _mask_dates(text)
     for m in NUM_RE.finditer(masked):
-        tok = m.group(0)
-        val = float(tok)
-        if val.is_integer() and int(val) in YEAR_RANGE:
-            continue
-        has_decimal = "." in tok
-        is_percent = m.end() < len(masked) and masked[m.end()] in PERCENT_CHARS
-        if has_decimal or is_percent or val >= min_number:
-            yield tok, m.start(), m.end()
+        if is_significant_token(masked, m, min_number):
+            yield m.group(0), m.start(), m.end()
 
 
 def extract_significant_numbers(text, min_number=10):
     """只提取「值得逐一对账」的数字。返回 ({数字: 次数}, 低信号数字个数)"""
     sig = {}
-    total = 0
     for tok, _s, _e in iter_significant_tokens(text, min_number):
         sig[tok] = sig.get(tok, 0) + 1
-        total += 1
-    masked = _mask_dates(text)
     low = 0
+    masked = _mask_dates(text)
     for m in NUM_RE.finditer(masked):
         tok = m.group(0)
-        val = float(tok)
-        if val.is_integer() and int(val) in YEAR_RANGE:
+        if tok.isdigit() and int(tok) in YEAR_RANGE:  # 年份既不算显著也不算低信号
             continue
-        has_decimal = "." in tok
-        is_percent = m.end() < len(masked) and masked[m.end()] in PERCENT_CHARS
-        if not (has_decimal or is_percent or val >= min_number):
+        if not is_significant_token(masked, m, min_number):
             low += 1
     return sig, low
 
@@ -185,16 +211,26 @@ def check(text, facts_text=None, keywords=None, max_width=150, min_number=10):
     issues = []
 
     # R1 + R4：bullet 检查
+    prose = 0
     for no, _raw, body in iter_bullets(lines):
         for verb in VERB_BLACKLIST:
             if body.startswith(verb):
                 issues.append(("WARN", no, f"R1 动词黑名单：以「{verb}」开头 → 改为具体动词+动作"))
                 break
         w = display_width(body)
-        if w > max_width:
-            issues.append(
-                ("WARN", no, f"R4 bullet 过长（显示宽度 {w} > {max_width}）→ 拆条或压缩到 2 行内")
-            )
+        if w <= max_width:
+            continue
+        # 以句号结尾的是叙述文字（STAR 口播稿、审计说明），不是要排进两行的简历条目。
+        # 交付包按模板生成时，第 3 节整段都是 "- **【S 情境】** …。" 这种列表项，
+        # 不排除的话每个用户都会在自己的交付包上收到四条假警告。
+        if _looks_like_prose(body):
+            prose += 1
+            continue
+        issues.append(
+            ("WARN", no, f"R4 bullet 过长（显示宽度 {w} > {max_width}）→ 拆条或压缩到 2 行内")
+        )
+    if prose:
+        issues.append(("INFO", "-", f"R4 跳过 {prose} 行以句号结尾的叙述文字（非简历条目）"))
 
     # R2：红灯词（附命中行片段，便于定位）
     # 被成对引号包住的命中算「引用」不算「主张」——交付包的审计表会大量出现
@@ -267,6 +303,7 @@ def main(argv=None):
     ap.add_argument("resume", help="简历/交付稿文件（md/txt）")
     ap.add_argument("--facts", help="事实档案 facts.md，启用 R5 数字比对")
     ap.add_argument("--keywords", help="逗号分隔的 JD 关键词，启用 R6 覆盖率")
+    ap.add_argument("--jd", help="JD 原文文件，自动抽词后并入 --keywords")
     ap.add_argument("--max-width", type=int, default=150, help="R4 显示宽度阈值（默认 150，约 2 行）")
     ap.add_argument("--min-number", type=float, default=10, help="R5 显著性阈值（默认 10）")
     ap.add_argument("--json", action="store_true", help="以 JSON 输出，便于接入自动化")
@@ -285,8 +322,15 @@ def main(argv=None):
             _fail(f"档案文件不存在: {fpath}", args.json)
         facts_text = fpath.read_text(encoding="utf-8")
 
-    kws = args.keywords.split(",") if args.keywords else None
-    issues = check(text, facts_text, kws, args.max_width, args.min_number)
+    kws = args.keywords.split(",") if args.keywords else []
+    if args.jd:
+        jpath = Path(args.jd)
+        if not jpath.exists():
+            _fail(f"JD 文件不存在: {jpath}", args.json)
+        jd_text = jpath.read_text(encoding="utf-8")
+        from_jd = [k for k in jd_keyword_string(extract_jd_keywords(jd_text)).split(",") if k]
+        kws = from_jd + [k for k in kws if k.strip() and k not in from_jd]
+    issues = check(text, facts_text, kws or None, args.max_width, args.min_number)
 
     n_err = sum(1 for lv, _, _ in issues if lv == "ERROR")
     n_warn = sum(1 for lv, _, _ in issues if lv == "WARN")
