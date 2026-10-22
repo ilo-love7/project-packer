@@ -5,7 +5,7 @@
 **Turn what you have actually done into interview-proof project experience — push the wording as hard as the facts allow, never touch the facts themselves.**
 
 ![ci](https://github.com/ilo-love7/project-packer/actions/workflows/ci.yml/badge.svg)
-![version](https://img.shields.io/badge/version-2.3.0-blue)
+![version](https://img.shields.io/badge/version-2.4.0-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
 ![type](https://img.shields.io/badge/agent%20skill-SKILL.md-orange)
 
@@ -33,7 +33,7 @@ This is not a resume beautifier, and it is not a fabrication assistant. The core
 - **Carrier reframing** — prepares answers to the aggressive questions ("was this an internship?" / "why do you have no internship?") in advance, translating non-internship experience into evidence of self-direction.
 - **Fact ledger** — one `facts.md` as the single source of truth per user (numbers + convention + evidence pointer + both final tiers + defence score); a forced diff before every output so repeated packaging never drifts.
 - **Sparring mode** — the agent plays the interviewer and drills down layer by layer with three-dimensional feedback; statements that collapse get downgraded, and the questions get written back into the follow-up tree and question bank.
-- **Two-layer audit** — `scripts/lint_resume.py` for the mechanical layer (verb blacklist / red-flag words / mixed date formats / number comparison / keyword coverage, offline and dependency-free) plus an agent semantic layer (follow-up tree / conventions / attribution).
+- **Four-layer audit** — three executable checks plus one semantic layer: `lint_resume.py` (verbs / red flags / dates / numbers / keywords), `trace_numbers.py` (every number back to a file:line in your workspace), `scan_privacy.py` (secrets and PII, masked on output), then the agent's semantic pass (follow-up tree / conventions / attribution). Nothing ships with an unresolved fail.
 - **Defence score** — each bullet gets 0–3 points (evidence strength + follow-up-tree coverage); anything below 2 is barred from the Intensified tier.
 - **ATS adaptation** — a plain-text version spec plus JD keyword coverage, with missing keywords sorted into three categories; no keyword stuffing, no hidden text.
 - **Retrospective write-back** — real interview questions that the follow-up tree did not anticipate get written back into the tree and banked; hit-rate statistics drive the next round.
@@ -63,9 +63,12 @@ project-packer/
 │   ├── example-battery.md          # golden example: a research reproduction with hard data
 │   └── example-student-work.md     # contrast example: student work without hard numbers
 ├── scripts/
-│   ├── lint_resume.py              # offline mechanical audit (verbs / red flags / dates / numbers)
-│   └── check_docs.py               # documentation consistency (version / counts / cross-refs / links)
-├── tests/                          # unittest suite for both scripts (zero dependency)
+│   ├── lint_resume.py              # mechanical audit (verbs / red flags / dates / numbers)
+│   ├── trace_numbers.py            # traces every number in a draft back to a real file
+│   ├── scan_privacy.py             # secrets and PII scanner, masks what it finds
+│   ├── check_docs.py               # documentation consistency (version / counts / cross-refs / links)
+│   └── _common.py                  # shared file walker used by the two scanners
+├── tests/                          # unittest suite for all four scripts (zero dependency)
 ├── evals.md                        # regression test cases (must run after any revision)
 └── .github/workflows/ci.yml        # tests + doc checks on every push
 ```
@@ -84,9 +87,11 @@ project-packer/
 
 **Full output** (complete flow): 4–6 resume bullets ｜ 3 STAR stories (with anticipated follow-up trees) ｜ a 30-second elevator pitch ｜ an honesty-boundary card ｜ carrier-reframing scripts ｜ an evidence list ｜ an audit report. For an English job description it also outputs bilingual bullets and pitch.
 
-## Lint your draft offline
+## Offline checks
 
-The mechanical layer runs without the agent — pure standard library, no `pip install`:
+Three checks run without the agent — pure standard library, no `pip install`. They are the executable form of the three claims this skill makes: *the wording is defensible*, *the numbers are real*, *nothing private leaked*.
+
+### 1. Mechanical audit — `lint_resume.py`
 
 ```bash
 # basic: verbs / red-flag words / mixed date formats / overlong bullets
@@ -112,10 +117,50 @@ Exit codes: `0` clean ｜ `1` warnings only ｜ `2` errors present.
 
 Note on the noise filter: a draft is full of incidental numbers ("spent 3 hours debugging"). Comparing every one of them against the ledger drowns the real warnings, so only numbers with a decimal point, a `%` sign, or a value at or above the threshold are checked one by one. The rest are counted and reported as a single informational line.
 
+### 2. Number traceback — `trace_numbers.py`
+
+The skill's central promise is "every number has an evidence pointer". This is that promise as a file scan:
+
+```bash
+python3 scripts/trace_numbers.py resume.md ../my-project
+```
+
+```
+[HIT ] 5.9
+       results/summary.csv:2  …B0005,5.9…
+       docs/debug.md:1  …首跑 33.6%，四轮归因后降到 5.9%。…
+
+[MISS] 174
+       not found anywhere in the workspace → supply evidence, or downgrade to a qualitative claim
+```
+
+A `MISS` is the interesting case: either the number came from memory (which the skill forbids), or the evidence is somewhere the scan cannot see. Both need a human decision — what neither needs is the number shipping as-is.
+
+Matching is boundary-aware, so `3` does not match inside `13` or `3.5`, and `5.9` does not match `5.95`. The draft itself is excluded, otherwise every number would trivially "hit" its own source line. Significance uses the same rule as `lint_resume.py`, so the two tools never contradict each other.
+
+### 3. Privacy scan — `scan_privacy.py`
+
+```bash
+python3 scripts/scan_privacy.py delivery.md
+python3 scripts/scan_privacy.py delivery.md --allow "138\d{8}"   # whitelist your own phone number
+```
+
+| Level | Catches |
+|---|---|
+| ERROR | Private key blocks, `sk-` / `ghp_` / `AKIA` / `xoxb-` tokens, credentials inside a URL, plaintext password assignments |
+| WARN | ID card numbers, phone numbers, private IPs, absolute paths containing a username |
+| INFO | Email addresses (a resume needs one — just confirm it is yours) |
+
+**Everything it reports is masked before printing.** A tool that echoes your leaked API key to the terminal — where it lands in your shell history and gets pasted into a chat window — is itself a new leak. Masking depth varies by risk: secrets keep only three characters, phone numbers keep head and tail (`138****5678`), internal IPs and emails print in full because you need to see *which machine* and *which address* to fix them.
+
+Exit codes: `0` clean ｜ `1` warnings ｜ `2` errors.
+
+Running it against this repository itself will surface a few warnings from the scanner's own test fixtures and from the regex definitions in its source. That is expected — a rule describing `/home/<user>` naturally matches its own description. The invariant worth keeping is `ERROR = 0`, and there is a test asserting exactly that across every file in the repo.
+
 ## Development
 
 ```bash
-python3 -m unittest discover -s tests -v   # unit tests for both scripts
+python3 -m unittest discover -s tests -v   # unit tests for all four scripts
 python3 scripts/check_docs.py              # version badge / stage count / audit item count / cross-refs / links
 python3 scripts/lint_resume.py references/example-battery.md --strict
 ```
@@ -128,6 +173,19 @@ python3 scripts/lint_resume.py references/example-battery.md --strict
 - [`references/example-student-work.md`](references/example-student-work.md) — a 174-person English check-in activity → substitute quantification, an incentive-failure conflict STAR, and the "why no internship" script.
 
 ## Changelog
+
+<details>
+<summary><b>v2.4.0</b> (2026-10-22) — number traceback and privacy scanning become executable</summary>
+
+Two of the skill's three promises were, until now, enforced only by the agent remembering to enforce them. Both are now file scans.
+
+`trace_numbers.py` takes a draft and a workspace and answers one question per number: *where did this come from?* It prints `HIT` with the file and line, or `MISS` with the instruction to supply evidence or downgrade the claim. Matching is boundary-aware (`3` will not match inside `13` or `3.5`), the draft excludes itself, and significance reuses the exact same rule as the linter so the two tools cannot disagree.
+
+`scan_privacy.py` catches private keys, `sk-`/`ghp_`/`AKIA`/`xoxb-` tokens, credentials embedded in URLs, plaintext password assignments, ID numbers, phone numbers, private IPs and username-bearing paths. It masks everything before printing — a tool that echoes a leaked key into your terminal is a new leak, not a fix — and scales the masking by risk: secrets keep three characters, phone numbers keep head and tail, internal IPs print in full because you need to see which machine to change it.
+
+Both share `scripts/_common.py` for file walking, so they never disagree about which files exist. The suite grows from 61 to 103 tests, including a check that the repo's own scripts contain no secret-shaped strings.
+
+</details>
 
 <details>
 <summary><b>v2.3.0</b> (2026-10-22) — test suite, CI, and a doc-consistency checker</summary>

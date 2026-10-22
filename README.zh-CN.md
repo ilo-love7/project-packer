@@ -5,7 +5,7 @@
 **把真实做过的事包装成面试可防守的高强度项目经历——措辞可以拉满，事实一个不能动。**
 
 ![ci](https://github.com/ilo-love7/project-packer/actions/workflows/ci.yml/badge.svg)
-![version](https://img.shields.io/badge/version-2.3.0-blue)
+![version](https://img.shields.io/badge/version-2.4.0-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
 ![type](https://img.shields.io/badge/agent%20skill-SKILL.md-orange)
 
@@ -33,7 +33,7 @@
 - **载体重定位**：提前备好"这段是实习吗 / 为什么你没有实习经历"的进攻性回答，把非实习载体翻译成自驱力证据
 - **事实档案**：每个用户一份 facts.md 唯一事实源（数字+口径+证据指针+两档定稿+防守分），输出前强制 diff，多次包装不漂移
 - **陪练模式**：agent 扮演面试官逐层追问，三维反馈，答崩的表述降档、问题回写追问树与真题库
-- **双层审计**：`scripts/lint_resume.py` 机械层（动词黑名单/红灯词/日期混用/数字比对/关键词覆盖，离线零依赖）+ agent 语义层（追问树/口径/归属）
+- **四层审计**：三层可执行检查 + 一层语义审计——`lint_resume.py`（动词/红灯词/日期/数字/关键词）、`trace_numbers.py`（每个数字回溯到工作区的 文件:行号）、`scan_privacy.py`（密钥与隐私，输出自带打码），最后由 agent 做语义层（追问树/口径/归属）。存在未处理的 fail 不得交稿。
 - **防守分评分卡**：每条 bullet 0~3 分（证据强度 + 追问树覆盖），<2 分禁入强化档
 - **ATS 适配**：纯文本版规范 + JD 关键词覆盖率，缺词三分类，不堆砌不隐写
 - **复盘回写**：真实面试被问到但追问树里没有的问题，回写进树并沉淀真题库，命中率统计驱动下次包装
@@ -63,9 +63,12 @@ project-packer/
 │   ├── example-battery.md          # 黄金示例：有硬数据的科研复现项目
 │   └── example-student-work.md     # 对照示例：无硬数字的学生工作
 ├── scripts/
-│   ├── lint_resume.py              # 离线机械层审计（动词/红灯词/日期/数字）
-│   └── check_docs.py               # 文档一致性（版本号/条目数/章节引用/相对链接）
-├── tests/                          # 两个脚本的单元测试（零依赖）
+│   ├── lint_resume.py              # 机械层审计（动词/红灯词/日期/数字）
+│   ├── trace_numbers.py            # 把交付稿里每个数字回溯到工作区里的真实出处
+│   ├── scan_privacy.py             # 密钥与隐私扫描，命中内容自动打码
+│   ├── check_docs.py               # 文档一致性（版本号/条目数/章节引用/相对链接）
+│   └── _common.py                  # 两个扫描器共用的文件遍历
+├── tests/                          # 四个脚本的单元测试（零依赖）
 ├── evals.md                        # 回归测试用例（改版后必跑）
 └── .github/workflows/ci.yml        # 每次推送跑测试 + 文档检查
 ```
@@ -84,9 +87,11 @@ project-packer/
 
 **完整产出**（全流程）：简历条目 ×4-6 ｜ STAR 故事 ×3（含追问预判树）｜ 30 秒电梯稿 ｜ 诚实边界卡 ｜ 载体重定位话术 ｜ 证据清单 ｜ 审计报告。英文 JD 自动输出双语简历条目与电梯稿。
 
-## 离线跑机械层审计
+## 离线检查
 
-不需要 agent，纯标准库，不用 `pip install`：
+三个检查都不需要 agent，纯标准库，不用 `pip install`。它们分别把三条承诺变成可执行的东西：**措辞防守得住**、**数字是真的**、**没漏隐私**。
+
+### 1. 机械层审计 —— `lint_resume.py`
 
 ```bash
 # 基础检查：动词黑名单 / 红灯词 / 日期格式混用 / bullet 超长
@@ -112,10 +117,50 @@ python3 scripts/lint_resume.py resume.md --facts facts.md --json
 
 关于降噪：简历里到处是顺带数字（"排查了 3 小时"），逐个对账会把真正的告警淹掉。所以只有「带小数点 / 带百分号 / 数值达到阈值」的数字才逐一对账，其余只统计成一行提示。
 
+### 2. 数字溯源 —— `trace_numbers.py`
+
+这个 skill 的核心主张是"每个数字都有证据指针"。这个脚本就是那句话的文件扫描版：
+
+```bash
+python3 scripts/trace_numbers.py resume.md ../my-project
+```
+
+```
+[HIT ] 5.9
+       results/summary.csv:2  …B0005,5.9…
+       docs/debug.md:1  …首跑 33.6%，四轮归因后降到 5.9%。…
+
+[MISS] 174
+       工作区里没有找到这个数字 → 补证据，或降级为定性描述/删除
+```
+
+`MISS` 才是重点：要么这个数字是凭记忆写的（skill 明令禁止），要么证据在扫描不到的地方。两种都需要人来判断——唯独不能让这个数字就这么交稿。
+
+匹配带边界，`3` 不会命中 `13` 或 `3.5` 里的 3，`5.9` 不会命中 `5.95`。交付稿自身被排除，否则每个数字都会在自己的原文里"命中"一次。显著性判定复用 `lint_resume.py` 的同一套规则，所以两个工具不会互相打架。
+
+### 3. 隐私扫描 —— `scan_privacy.py`
+
+```bash
+python3 scripts/scan_privacy.py delivery.md
+python3 scripts/scan_privacy.py delivery.md --allow "138\d{8}"   # 放行自己的手机号
+```
+
+| 级别 | 抓什么 |
+|---|---|
+| ERROR | 私钥块、`sk-` / `ghp_` / `AKIA` / `xoxb-` 令牌、URL 里内嵌的账号密码、明文口令赋值 |
+| WARN | 身份证号、手机号、内网 IP、含用户名的本机绝对路径 |
+| INFO | 邮箱（简历留一个自己的是正常的，确认不是他人的即可） |
+
+**命中内容一律先打码再输出。** 一个把你泄露的 API 密钥完整打到终端、然后被粘进聊天窗口的工具，本身就是新的泄露渠道。打码深度按危险等级分档：密钥只留三位；手机号保留头尾（`138****5678`）；内网 IP 和邮箱完整显示——因为你需要看到"是哪台机器、哪个邮箱"才改得动。
+
+退出码：`0` 干净 ｜ `1` 仅有警告 ｜ `2` 存在错误。
+
+拿它扫这个仓库自身，会报出几条来自测试样本和源码里正则定义的警告。这是预期行为——描述 `/home/<用户名>` 的规则自然会命中它自己的描述。真正要守的不变量是 `ERROR = 0`，仓库里有一条测试就断言了这件事（覆盖全部文件）。
+
 ## 开发
 
 ```bash
-python3 -m unittest discover -s tests -v   # 两个脚本的单元测试
+python3 -m unittest discover -s tests -v   # 四个脚本的单元测试
 python3 scripts/check_docs.py              # 版本徽章 / 阶段数 / 审计条数 / 章节引用 / 相对链接
 python3 scripts/lint_resume.py references/example-battery.md --strict
 ```
@@ -128,6 +173,19 @@ python3 scripts/lint_resume.py references/example-battery.md --strict
 - [example-student-work.md](references/example-student-work.md)：174 人英语打卡活动 → 替代量化、激励失效冲突 STAR、"为什么没有实习经历"话术
 
 ## 更新日志
+
+<details>
+<summary><b>v2.4.0</b>（2026-10-22）数字溯源与隐私扫描变成可执行工具</summary>
+
+这个 skill 有三条承诺，其中两条在此之前只靠 agent 记得去做。现在都是文件扫描。
+
+`trace_numbers.py` 拿一份交付稿和一个工作区，对每个数字只回答一个问题：**这个数字从哪来的？** 找到就打印 `HIT` 加文件与行号，找不到就打印 `MISS` 并说明"补证据，或降级为定性描述/删除"。匹配带边界（`3` 不会命中 `13` 或 `3.5` 里的 3），交付稿自身被排除，显著性判定与 linter 复用同一套规则——所以两个工具不会互相打架。
+
+`scan_privacy.py` 抓私钥、`sk-`/`ghp_`/`AKIA`/`xoxb-` 令牌、URL 内嵌凭据、明文口令赋值、身份证号、手机号、内网 IP 和含用户名的绝对路径。**输出前一律打码**——一个把泄露的密钥打到你的终端上的工具，本身就是一个新的泄露渠道，不是修复。打码深度按风险分档：密钥只留三位，手机号保留头尾，内网 IP 完整显示，因为你需要看到是哪台机器才改得动。
+
+两者共用 `scripts/_common.py` 做文件遍历，保证"哪些文件算数"只有一处定义。测试从 61 条涨到 103 条，其中一条专门断言仓库自身的脚本里不含形似密钥的字符串。
+
+</details>
 
 <details>
 <summary><b>v2.3.0</b>（2026-10-22）测试套件 + CI + 文档一致性检查</summary>

@@ -77,6 +77,17 @@ def _strip_dates(text):
     return text
 
 
+def _mask_dates(text):
+    """把日期替换成等长的空格，从而在屏蔽日期后仍保持字符下标不变。
+
+    trace_numbers.py 需要「这个数字在第几个字符」来截取上下文，
+    所以不能用 _strip_dates 那种会改变长度的替换。
+    """
+    for pat, _ in DATE_PATTERNS:
+        text = pat.sub(lambda m: " " * len(m.group(0)), text)
+    return text
+
+
 def extract_numbers(text):
     """提取全部有审计意义的数字（先剥离日期，再跳过年份）。返回 {数字字符串: 次数}
 
@@ -91,24 +102,42 @@ def extract_numbers(text):
     return found
 
 
-def extract_significant_numbers(text, min_number=10):
-    """只提取「值得逐一对账」的数字。返回 ({数字: 次数}, 低信号数字个数)
+def iter_significant_tokens(text, min_number=10):
+    """按出现顺序产出「值得逐一对账」的数字：(token, start, end)。
 
     显著判定（任一成立）：带小数点 / 紧跟百分号 / 数值 >= min_number。
     这条规则是为了压掉「排查了 3 小时」这类顺带数字的噪音。
+    start/end 是在原文中的下标，调用方可以据此截取上下文。
     """
-    stripped = _strip_dates(text)
-    sig, low = {}, 0
-    for m in NUM_RE.finditer(stripped):
+    masked = _mask_dates(text)
+    for m in NUM_RE.finditer(masked):
         tok = m.group(0)
         val = float(tok)
         if val.is_integer() and int(val) in YEAR_RANGE:
             continue
         has_decimal = "." in tok
-        is_percent = m.end() < len(stripped) and stripped[m.end()] in PERCENT_CHARS
+        is_percent = m.end() < len(masked) and masked[m.end()] in PERCENT_CHARS
         if has_decimal or is_percent or val >= min_number:
-            sig[tok] = sig.get(tok, 0) + 1
-        else:
+            yield tok, m.start(), m.end()
+
+
+def extract_significant_numbers(text, min_number=10):
+    """只提取「值得逐一对账」的数字。返回 ({数字: 次数}, 低信号数字个数)"""
+    sig = {}
+    total = 0
+    for tok, _s, _e in iter_significant_tokens(text, min_number):
+        sig[tok] = sig.get(tok, 0) + 1
+        total += 1
+    masked = _mask_dates(text)
+    low = 0
+    for m in NUM_RE.finditer(masked):
+        tok = m.group(0)
+        val = float(tok)
+        if val.is_integer() and int(val) in YEAR_RANGE:
+            continue
+        has_decimal = "." in tok
+        is_percent = m.end() < len(masked) and masked[m.end()] in PERCENT_CHARS
+        if not (has_decimal or is_percent or val >= min_number):
             low += 1
     return sig, low
 

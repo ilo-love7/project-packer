@@ -21,7 +21,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
 
-      # 零依赖：两个脚本都只用标准库，所以不需要 pip install
+      # 零依赖：全部脚本只用标准库，所以不需要 pip install
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
 
@@ -61,3 +61,68 @@ jobs:
           echo "$out" | grep -q "R1" || { echo "::error::未抓到动词黑名单"; exit 1; }
           echo "$out" | grep -q "R2" || { echo "::error::未抓到红灯词"; exit 1; }
           echo "$out" | grep -q "R4" || { echo "::error::未抓到 bullet 超长"; exit 1; }
+
+  scanners:
+    name: end-to-end scanners
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: trace_numbers finds a real number and reports a missing one
+        run: |
+          mkdir -p /tmp/ws/results
+          printf 'cell,mae\nB0005,5.9\n' > /tmp/ws/results/summary.csv
+          cat > /tmp/draft.md <<'EOF'
+          误差 5.9%；覆盖 174 人
+          EOF
+          set +e
+          out=$(python scripts/trace_numbers.py /tmp/draft.md /tmp/ws)
+          code=$?
+          set -e
+          echo "$out"
+          [ "$code" -eq 1 ] || { echo "::error::有 MISS 时应返回 1，实际 $code"; exit 1; }
+          echo "$out" | grep -q "\[HIT \] 5.9" || { echo "::error::5.9 应命中"; exit 1; }
+          echo "$out" | grep -q "\[MISS\] 174" || { echo "::error::174 应报 MISS"; exit 1; }
+
+      - name: trace_numbers excludes the draft itself
+        run: |
+          cp /tmp/draft.md /tmp/ws/draft.md
+          set +e
+          out=$(python scripts/trace_numbers.py /tmp/ws/draft.md /tmp/ws)
+          set -e
+          echo "$out"
+          # 命中行格式是 文件:行号，标题行里的 draft.md 不算证据
+          if echo "$out" | grep -qE "draft\.md:[0-9]+"; then
+            echo "::error::交付稿自身不应作为证据"
+            exit 1
+          fi
+
+      - name: scan_privacy catches a secret and never echoes it
+        run: |
+          # 用拼接构造样本，避免仓库里真的躺一个形似密钥的字符串
+          printf 'key %s%s\n' 'sk-' 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' > /tmp/leak.md
+          set +e
+          out=$(python scripts/scan_privacy.py /tmp/leak.md)
+          code=$?
+          set -e
+          echo "$out"
+          if [ "$code" -ne 2 ]; then
+            echo "::error::有密钥时应返回 2，实际 $code"
+            exit 1
+          fi
+          if ! echo "$out" | grep -q "OpenAI"; then
+            echo "::error::未抓到 sk- 密钥"
+            exit 1
+          fi
+          if echo "$out" | grep -q "AAAAAAAAAA"; then
+            echo "::error::密钥被完整打印出来了"
+            exit 1
+          fi
+
+      - name: scan_privacy passes a clean draft
+        run: |
+          printf '复现论文管线，官方划分中位误差 5.9%%。\n' > /tmp/clean.md
+          python scripts/scan_privacy.py /tmp/clean.md
