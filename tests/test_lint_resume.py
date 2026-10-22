@@ -118,8 +118,15 @@ class TestR1VerbBlacklist(unittest.TestCase):
         self.assertEqual(len(levels(issues, "WARN")), 2)
 
     def test_does_not_flag_verb_in_the_middle(self):
+        # R1 只管句首。句中「参与」不归 R1，句中「主导」归 R7 的归属词规则，
+        # 所以这里只能断言「没有 R1 告警」——早先写的是「没有任何 WARN」，
+        # 那是在 R7 还不存在时才成立的过宽断言。
         issues = lint.check("- 主导并参与模型训练")
-        self.assertEqual(levels(issues, "WARN"), [])
+        self.assertEqual([m for m in levels(issues, "WARN") if m.startswith("R1")], [])
+
+    def test_mid_line_ownership_word_falls_to_r7_not_r1(self):
+        issues = lint.check("- 主导并参与模型训练")
+        self.assertEqual(len([m for m in levels(issues, "WARN") if m.startswith("R7")]), 1)
 
 
 class TestR2RedWords(unittest.TestCase):
@@ -308,6 +315,70 @@ class TestMainCli(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertEqual(payload["summary"]["error"], 1)
         self.assertEqual(payload["issues"][0]["level"], "ERROR")
+
+
+class TestR7YellowWords(unittest.TestCase):
+    """R7：黄灯词必须带限定词。
+
+    这一组测试的重点不是「能不能抓到」，而是「会不会误报」——R7 只给 WARN，
+    但 WARN 一多用户就会关掉工具。所以每个正例都配一个反例。
+    """
+
+    def r7(self, text):
+        return [m for m in levels(lint.check(text), "WARN") if m.startswith("R7")]
+
+    # —— 效果词要对照数字 ——
+    def test_effect_word_without_numbers_warns(self):
+        self.assertEqual(len(self.r7("- 优化了数据加载流程；")), 1)
+
+    def test_effect_word_with_arrow_passes(self):
+        self.assertEqual(self.r7("- 优化加载流程，耗时 480 秒→90 秒；"), [])
+
+    def test_effect_word_with_percent_passes(self):
+        self.assertEqual(self.r7("- 优化索引，查询耗时降低 61%；"), [])
+
+    def test_effect_word_with_from_to_passes(self):
+        self.assertEqual(self.r7("- 优化查询，中位耗时从 7 分 20 秒降到 2 分 10 秒；"), [])
+
+    def test_effect_word_at_clause_end_is_not_a_claim(self):
+        # 「做了一些优化，」是在陈述做了这件事的类别，不是在主张效果
+        self.assertEqual(self.r7("- 对慢查询做了一些优化，思路来自导师评审；"), [])
+
+    # —— 归属词要范围 ——
+    def test_ownership_word_without_scope_warns(self):
+        self.assertEqual(len(self.r7("- 主导了数据平台建设；")), 1)
+
+    def test_ownership_word_with_headcount_passes(self):
+        self.assertEqual(self.r7("- 主导 3 人小组完成数据平台建设；"), [])
+
+    def test_ownership_word_with_team_scope_passes(self):
+        self.assertEqual(self.r7("- 牵头跨部门协作，打通两个系统的数据口径；"), [])
+
+    def test_ownership_word_describing_someone_else_is_not_flagged(self):
+        # 审计说明里「活动确为副部长牵头 → pass」，是在描述事实，不是自己主张
+        self.assertEqual(self.r7('- "主导"限真实主导：活动确为副部长牵头 → pass；'), [])
+
+    # —— 程度词要覆盖面 ——
+    def test_automation_without_degree_warns(self):
+        self.assertEqual(len(self.r7("- 实现了流程自动化；")), 1)
+
+    def test_automation_with_step_count_passes(self):
+        self.assertEqual(self.r7("- 将 12 个手工步骤全部自动化；"), [])
+
+    def test_automation_with_coverage_passes(self):
+        self.assertEqual(self.r7("- 自动化覆盖率从 0 提升到 84%；"), [])
+
+    # —— 豁免 ——
+    def test_quoted_yellow_word_is_not_flagged(self):
+        self.assertEqual(self.r7('- 审计表：初稿写"主导了平台建设" → fix；'), [])
+
+    def test_prose_line_is_not_flagged(self):
+        # 口播稿按 R4 的同一套判据豁免，代价是英文条目以句号结尾会漏检
+        self.assertEqual(self.r7("- 我主导了这个项目，从选型一路做到上线。"), [])
+
+    def test_english_effect_word_is_out_of_scope(self):
+        # R7 只查中文黄灯词；英文版的对应检查在 english-resume.md 里人工过
+        self.assertEqual(self.r7("- Optimized the loading pipeline;"), [])
 
 
 class TestGoldenExamples(unittest.TestCase):

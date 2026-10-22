@@ -203,3 +203,38 @@ jobs:
             echo "::error::并行经历被报成警告"
             exit 1
           fi
+
+      - name: R7 asks for the missing qualifier and stays quiet on the examples
+        run: |
+          cat > /tmp/r7.md <<'EOF'
+          - 优化了数据加载流程；
+          - 主导了数据平台建设；
+          - 实现了流程自动化；
+          - 优化查询，中位耗时从 7 分 20 秒降到 2 分 10 秒；
+          - 主导 3 人小组完成数据平台建设；
+          - 将 12 个手工步骤全部自动化；
+          - "主导"限真实主导：活动确为副部长牵头 → pass；
+          EOF
+          set +e
+          out=$(python scripts/lint_resume.py /tmp/r7.md)
+          code=$?
+          set -e
+          echo "$out"
+          [ "$code" -eq 1 ] || { echo "::error::R7 只有 WARN，应返回 1，实际 $code"; exit 1; }
+          for n in 1 2 3; do
+            echo "$out" | grep -q "^\[WARN\] L$n R7" || { echo "::error::L$n 应报 R7"; exit 1; }
+          done
+          for n in 4 5 6 7; do
+            if echo "$out" | grep -q "^\[WARN\] L$n R7"; then
+              echo "::error::L$n 有限定词/引号/句尾，不应报 R7"
+              exit 1
+            fi
+          done
+          # 四个参考示例必须零 R7 告警——规则照着它们调，不能反过来让它们迁就规则
+          for f in references/example-software.md references/example-student-work.md \
+                   references/example-battery.md references/example-delivery.md; do
+            if python scripts/lint_resume.py "$f" | grep -q "R7"; then
+              echo "::error::$f 出现 R7 告警"
+              exit 1
+            fi
+          done

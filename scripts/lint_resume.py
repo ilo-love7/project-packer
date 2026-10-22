@@ -19,6 +19,12 @@ lint_resume.py — project-packer 机械层审计（离线、零依赖、可复�
   R4 bullet 过长（显示宽度 > 阈值，约超 2 行）                    → WARN
   R5 数字与事实档案比对（给了 --facts 时）：简历数字未见于档案      → WARN
   R6 关键词覆盖（给了 --keywords 或 --jd 时）：输出覆盖率与缺失清单  → INFO
+  R7 黄灯词缺限定词：优化/主导/自动化 等不带限定条件就用             → WARN
+
+关于 R7 为什么只给 WARN：黄灯词本身不违规，违规的是「不带限定词就用」。
+但「有没有限定词」是词法判断，写得粗糙就会误报——比如「优化了索引，使查询更快」
+确实该改，可「优化思路来自导师」里的优化只是叙述用词。因此 R7 一律 WARN，
+由 agent 在语义层决定 fix 还是忽略，绝不像 R2 那样直接判死。
 
 关于 R4 的宽度：用「显示宽度」而非字符数。一个中文字符占 2 个西文宽度，
 所以中文 75 字和英文 150 字符在简历上都约等于 2 行。默认阈值 150，
@@ -60,6 +66,29 @@ RED_WORDS = {
     "填补空白": "无依据的绝对化表述",
 }
 BULLET_RE = re.compile(r"^\s*(?:[-*·•]\s*|\d+\.\s+|\d+[、)）]\s*)\s*(.*)$")
+
+# R7：integrity-audit.md「黄（必须带限定词）」那一档的可执行版本。
+# 三类词各有各的限定物，不能混用一套判定：
+#   效果词要「对照数字」（优化到什么程度），
+#   归属词要「范围」（主导了多大盘子），
+#   程度词要「覆盖面」（自动化到哪一步）。
+# 「从零搭建」故意不收：它需要的是证据等级而不是限定词，
+# 判断依据是档案里的实现方式，词法查不出来，硬查只会逼用户改写词面。
+EFFECT_WORDS = ("优化", "提升", "降低", "缩短", "减少", "加速", "改善", "提高")
+OWNERSHIP_WORDS = ("主导", "牵头", "独立完成", "全权")
+DEGREE_WORDS = ("自动化",)
+
+ARROW_RE = re.compile(r"(→|->|=>|⇒)")
+FROM_RE = re.compile(r"从\s*\d")
+TO_RE = re.compile(r"(提升|降低|缩短|减少|提高|增加|降|升|涨)至\s*\d")
+SCOPE_RE = re.compile(r"\d+\s*(人|名|位|个|条|项|步|类|家|模块|服务|接口|页面|系统)")
+TEAM_RE = re.compile(r"(团队|小组|跨部门|跨团队|全流程|多人)")
+DEGREE_RE = re.compile(r"(\d+\s*[%％]|[%％]|定时|每日|每周|每天|每月|自动触发|全量|全部|端到端)")
+
+# 分句终止符：黄灯词后面紧跟这些，说明词是分句的结尾而不是主张的动词。
+# 「由部长牵头；」「真实主导：」都落在这里，从而不算主张。
+CLAUSE_END = set("，,。.；;：:！!？?、）)」》 \t")
+
 DATE_PATTERNS = [
     (re.compile(r"\b(19|20)\d{2}\.\s?(0?[1-9]|1[0-2])\b"), "YYYY.MM"),
     (re.compile(r"\b(19|20)\d{2}-(0?[1-9]|1[0-2])\b"), "YYYY-MM"),
@@ -102,6 +131,58 @@ def _is_quoted(line, start, end, spans=None):
     """命中片段是否落在某个引号区间内（在引用，不是在主张）。"""
     spans = _quoted_spans(line) if spans is None else spans
     return any(s <= start and end <= e for s, e in spans)
+
+
+def _unquoted_hit(body, word):
+    """该词是否在行内出现过、且至少有一次不在引号里。
+
+    与 _unquoted_claim 的区别：这里不问词后接什么。自动化/全自动化这类
+    名词性说法天然落在分句末尾（「实现了流程自动化」），用 claim 判据会漏掉
+    最该抓的那种写法，所以程度词只判有没有出现。
+    """
+    spans = _quoted_spans(body)
+    pos = body.find(word)
+    while pos != -1:
+        if not _is_quoted(body, pos, pos + len(word), spans):
+            return True
+        pos = body.find(word, pos + 1)
+    return False
+
+
+def _unquoted_claim(body, word):
+    """该词是否作为「主张」出现：未加引号，且后面接了宾语而不是分句就结束了。
+
+    「活动确为副部长牵头；」里的牵头是在描述既成事实，不是在主张自己牵头；
+    「主导了数据平台建设」才是主张。判据是词后是否紧跟分句终止符——
+    这一条把审计说明、责任归属描述整类挡在外面，否则每份交付包的审计节
+    都会因为「由 XX 牵头」被判成黄灯词缺范围。
+    """
+    spans = _quoted_spans(body)
+    pos = body.find(word)
+    while pos != -1:
+        end = pos + len(word)
+        if not _is_quoted(body, pos, end, spans):
+            if end >= len(body) or body[end] not in CLAUSE_END:
+                return True
+        pos = body.find(word, pos + 1)
+    return False
+
+
+def _has_comparison(body):
+    """效果词要的「对照数字」：X→Y、从 X 到 Y、提升至 N、或任意百分比。"""
+    if ARROW_RE.search(body) or FROM_RE.search(body) or TO_RE.search(body):
+        return True
+    return "%" in body or "％" in body
+
+
+def _has_scope(body):
+    """归属词要的「范围」：人数/模块数/项目数，或团队类限定。"""
+    return bool(SCOPE_RE.search(body) or TEAM_RE.search(body))
+
+
+def _has_degree(body):
+    """程度词要的「覆盖面」：比例、步骤数，或触发频率。"""
+    return bool(DEGREE_RE.search(body))
 
 
 def display_width(text):
@@ -231,6 +312,31 @@ def check(text, facts_text=None, keywords=None, max_width=150, min_number=10):
         )
     if prose:
         issues.append(("INFO", "-", f"R4 跳过 {prose} 行以句号结尾的叙述文字（非简历条目）"))
+
+    # R7：黄灯词缺限定词（integrity-audit.md 黄档的可执行版本）
+    # 范围与 R4 一致：只查简历条目。交付包第 3 节的口播稿里「我优化了接口」
+    # 是准备念出来的话，按书面条目判定会刷出一片假警告。
+    for no, _raw, body in iter_bullets(lines):
+        if _looks_like_prose(body):
+            continue
+        if not _has_comparison(body):
+            hit = next((w for w in EFFECT_WORDS if _unquoted_claim(body, w)), None)
+            if hit:
+                issues.append(
+                    ("WARN", no, f"R7 「{hit}」没有对照数字 → 补 X→Y 或「提升 N%」，否则改成定性描述")
+                )
+        if not _has_scope(body):
+            hit = next((w for w in OWNERSHIP_WORDS if _unquoted_claim(body, w)), None)
+            if hit:
+                issues.append(
+                    ("WARN", no, f"R7 「{hit}」没有范围限定 → 补人数/模块数或团队范围，否则降为「参与」")
+                )
+        if not _has_degree(body):
+            hit = next((w for w in DEGREE_WORDS if _unquoted_hit(body, w)), None)
+            if hit:
+                issues.append(
+                    ("WARN", no, f"R7 「{hit}」没有程度说明 → 补覆盖率或步骤数，否则说明自动化到哪一步")
+                )
 
     # R2：红灯词（附命中行片段，便于定位）
     # 被成对引号包住的命中算「引用」不算「主张」——交付包的审计表会大量出现

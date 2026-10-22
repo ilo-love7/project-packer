@@ -5,7 +5,7 @@
 **Turn what you have actually done into interview-proof project experience — push the wording as hard as the facts allow, never touch the facts themselves.**
 
 ![ci](https://github.com/ilo-love7/project-packer/actions/workflows/ci.yml/badge.svg)
-![version](https://img.shields.io/badge/version-2.8.0-blue)
+![version](https://img.shields.io/badge/version-2.9.0-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
 ![type](https://img.shields.io/badge/agent%20skill-SKILL.md-orange)
 
@@ -33,7 +33,7 @@ This is not a resume beautifier, and it is not a fabrication assistant. The core
 - **Carrier reframing** — prepares answers to the aggressive questions ("was this an internship?" / "why do you have no internship?") in advance, translating non-internship experience into evidence of self-direction.
 - **Fact ledger** — one `facts.md` as the single source of truth per user (numbers + convention + evidence pointer + both final tiers + defence score); a forced diff before every output so repeated packaging never drifts.
 - **Sparring mode** — the agent plays the interviewer and drills down layer by layer with three-dimensional feedback; statements that collapse get downgraded, and the questions get written back into the follow-up tree and question bank.
-- **Five-layer audit** — four executable checks plus one semantic layer: `lint_resume.py` (verbs / red flags / dates / numbers / keywords), `trace_numbers.py` (every number back to a file:line in your workspace), `scan_privacy.py` (secrets and PII, masked on output), `check_facts.py` (one ledger against several resume versions — cross-version conflicts, unrecorded numbers, idle material), then the agent's semantic pass (follow-up tree / conventions / attribution). Nothing ships with an unresolved fail.
+- **Five-layer audit** — four executable checks plus one semantic layer: `lint_resume.py` (verbs / red flags / yellow words / dates / numbers / keywords), `trace_numbers.py` (every number back to a file:line in your workspace), `scan_privacy.py` (secrets and PII, masked on output), `check_facts.py` (one ledger against several resume versions — cross-version conflicts, unrecorded numbers, idle material), then the agent's semantic pass (follow-up tree / conventions / attribution). Nothing ships with an unresolved fail.
 - **JD parsing** — paste the job description whole; `parse_jd.py` turns it into a grouped, frequency-sorted keyword list and prints the exact `--keywords` string the linter takes. High-frequency words are hard requirements, single mentions are bonuses, and that ordering is the priority order for the evidence map.
 - **Multi-project budgeting** — one page holds 12–20 lines of project experience, so "how many projects, how many bullets each, who goes first" is arithmetic rather than taste. A 3-axis score (job fit + defence score + distinctiveness) sorts every experience into L1 full / L2 compact / L3 one-liner / L4 interview-only; a project with a defence score of 0 can never exceed L2, and projects are ordered by relevance rather than recency. Cut material moves into the fact ledger, never into the bin.
 - **English and internship branches** — an English job description does not produce a translation, it produces a different writing system: past-tense verbs first, articles dropped, units kept, one spelling convention, 120 characters per line. Having an internship flips the discipline from "push the wording" to "be precise" — the evidence is stronger, but so is the verification: NDA boundaries, a clear statement of which part was yours, and the four questions every internship gets asked.
@@ -75,7 +75,7 @@ project-packer/
 │   ├── question-bank.template.md   # interview question bank skeleton
 │   └── delivery.template.md        # the full delivery package skeleton
 ├── scripts/
-│   ├── lint_resume.py              # mechanical audit (verbs / red flags / dates / numbers)
+│   ├── lint_resume.py              # mechanical audit (verbs / red flags / yellow words / dates / numbers)
 │   ├── parse_jd.py                 # turns a raw job description into the keyword list
 │   ├── trace_numbers.py            # traces every number in a draft back to a real file
 │   ├── check_timeline.py           # merged timeline: reversed ranges, overlaps, gaps
@@ -109,7 +109,7 @@ Five checks run without the agent — pure standard library, no `pip install`. T
 ### 1. Mechanical audit — `lint_resume.py`
 
 ```bash
-# basic: verbs / red-flag words / mixed date formats / overlong bullets
+# basic: verbs / red-flag words / yellow words / mixed date formats / overlong bullets
 python3 scripts/lint_resume.py resume.md
 
 # cross-check every number against the fact ledger, and score JD keyword coverage
@@ -133,6 +133,12 @@ python3 scripts/lint_resume.py resume.md --facts facts.md --json
 | `--json` | Emit structured JSON instead of text |
 
 Exit codes: `0` clean ｜ `1` warnings only ｜ `2` errors present.
+
+**R7, the yellow words.** `integrity-audit.md` has always said that 优化/主导/自动化 need a qualifier, but "need a qualifier" was a judgement call. R7 turns it into three questions with three different answers, because each class of word is missing a different thing: an *effect* word (优化/提升/降低/缩短/减少/加速/改善/提高) needs a comparison — `X→Y`, `从 N 到 M`, `降至 N`, or any `%`; an *ownership* word (主导/牵头/独立完成/全权) needs a scope — a headcount or module count, or a team qualifier; a *degree* word (自动化) needs coverage — a percentage, a step count, or a trigger frequency.
+
+It is deliberately `WARN` only. A red-flag word can be failed outright (自主研发 is wrong however you phrase it); a yellow word cannot, because "优化思路来自导师评审" is a perfectly honest sentence that happens to contain 优化. R7 asks a question, it does not pass a verdict. Two cases it refuses to flag: a word in quotes (an audit table saying `"主导" → fix` is documenting the problem, not committing it), and a word at the end of a clause (`活动确为副部长牵头` describes who led, it does not claim you did) — without that second rule, every delivery package would warn on its own audit section. It also only looks at resume bullets, not prose, so the STAR script in section 3 of a delivery package is exempt.
+
+Two things it cannot check and says so: whether 提出 is genuinely original, and whether a scoped 主导 was really yours. Both are evidence questions, not vocabulary questions — that is what the follow-up tree is for.
 
 `parse_jd.py` also runs standalone when you want to see what it found and why:
 
@@ -296,6 +302,35 @@ Three files exist purely so the first run does not start from a blank page:
 | [`templates/question-bank.template.md`](templates/question-bank.template.md) | Copy after your first real interview. One real question = one record, marked ✅ hit / 🟡 outside the tree / ❌ collapsed. |
 
 ## Changelog
+
+<details>
+<summary><b>v2.9.0</b> (2026-10-22) — the yellow words get a predicate</summary>
+
+The last hard constraint with a document but no check was #3, "terminology is upgraded honestly". It turned out to be two-thirds done already: `R2` catches the red words (自主研发 / 显著优于 / 行业领先 / 填补空白) outright, and `R1` catches the soft verbs at the start of a bullet (参与 / 协助 / 负责). What nothing caught was the middle band — the words that are fine to use and wrong to use *bare*.
+
+`R7` covers it, and the design is the interesting part. The yellow band is not one rule but three, because each class is missing a different thing:
+
+| Class | Words | Missing | Satisfied by |
+|---|---|---|---|
+| Effect | 优化 提升 降低 缩短 减少 加速 改善 提高 | a comparison | `X→Y`, `从 N 到 M`, `降至 N`, any `%` |
+| Ownership | 主导 牵头 独立完成 全权 | a scope | headcount / module count / 团队·小组·跨部门·全流程 |
+| Degree | 自动化 | coverage | percentage, step count, 定时·每日·每周·自动触发 |
+
+Three decisions that matter more than the word list:
+
+**`WARN`, never `ERROR`.** A red word can be failed however it is phrased; a yellow word cannot, because the same characters can be an honest sentence. 「优化思路来自导师评审」is not a claim about results. R7 asks "where are the numbers", and the answer is allowed to be "there are none, this is context" — which is exactly what a `WARN` means.
+
+**A word at the end of a clause is not a claim.** The first version flagged `活动确为副部长牵头 → pass` in `example-student-work.md`, a line that describes who led, not a claim that the user did. The predicate became: unquoted, *and* followed by something other than clause-ending punctuation. Without it every delivery package warns on its own audit section, because that section is written as `"主导"限真实主导：…牵头 → pass`.
+
+**Same scope as `R4`.** Only resume bullets, not prose — the STAR script in section 3 of a delivery package is meant to be spoken, and 「我优化了接口」is what you would actually say. The cost is identical and now documented twice: a bullet ending in a full stop escapes both checks, so Chinese entries end with `；` and English entries end with `；` or nothing.
+
+Two things R7 explicitly cannot do, and the docs say so rather than pretending: whether 提出 is genuinely original, and whether a scoped 主导 was really yours. Both are evidence questions for the follow-up tree.
+
+One existing test had to be narrowed. `test_does_not_flag_verb_in_the_middle` asserted that `- 主导并参与模型训练` produced no warnings at all — true only while R7 did not exist. It now asserts no *`R1`* warnings, plus a new test pinning down that the mid-line 主导 is R7's business. The division of labour is now tested rather than implied.
+
+Tests 206 → 222, and the four reference examples still produce zero `R7` warnings — the rule was tuned against them, not the other way round.
+
+</details>
 
 <details>
 <summary><b>v2.8.0</b> (2026-10-22) — the timeline, the English version, and the internship case</summary>
