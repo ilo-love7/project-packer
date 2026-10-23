@@ -25,6 +25,26 @@ jobs:
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
 
+  # Windows leg：新增 job，上面的 `test` job（名字与内容）一个字未动。
+  # 全套测试零依赖、只用标准库（本地 Windows 实测 264 passed），所以这里
+  # 不需要 pip install、也不需要 bash；`/usr/bin/env python3` 这类 shebang
+  # 在 Windows 上是惰性的，不影响 `python -m unittest`。
+  test-windows:
+    name: tests (windows-latest / py${{ matrix.python }})
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.9", "3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -v
+
   docs:
     name: docs consistency
     runs-on: ubuntu-latest
