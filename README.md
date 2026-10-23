@@ -539,3 +539,19 @@ This repository is part of a set of work on batteries and transport modelling by
 | [drift-diffusion-pn-junction](https://github.com/ilo-love7/drift-diffusion-pn-junction) | Self-contained 1D drift–diffusion–Poisson solver with three-layer verification |
 | [car-following](https://github.com/ilo-love7/car-following) | Car-following traffic modelling toolkit (7 models, stability, calibration, lane changing, EV energy) |
 | [project-packer](https://github.com/ilo-love7/project-packer) | Turning real project work into interview-defensible experience (fact dossier + question tree) |
+
+## What you can do with this skill
+
+| Job | How |
+|---|---|
+| **Turn one real project into an interview-defensible story** | Walk the SKILL.md checklist: freeze the fact dossier → build the follow-up tree → rehearse three layers of "why" |
+| **Stop the story from drifting as you retell it** | Record every number once in the fact dossier, with its source and its boundary; never restate a figure you cannot point to |
+| **Survive the third layer of questioning** | For each claim, answer *where the number comes from*, *what its boundary is*, and *what would falsify it* |
+| **Prepare a portfolio of 5–7 projects instead of one** | Use the seven sibling repositories as raw material: materials ML, cycle-life reproduction, SOH benchmark, ECM/RUL, device solver, traffic modelling |
+| **Reuse it with an agent that follows SKILL.md** | Drop the folder into the agent's skills directory, keeping `SKILL.md` at the root |
+
+Typical situations: internship/job applications, graduate-school interviews, and any review where
+"you said 26% — how do you know?" is the next question.
+
+**The principle:** a project is not defensible because it is impressive, but because every number in it
+has a traceable source, a stated boundary, and a known failure mode.
